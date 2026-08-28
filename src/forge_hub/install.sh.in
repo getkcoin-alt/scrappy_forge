@@ -1,0 +1,48 @@
+#!/bin/sh
+# Scrappy Forge public installer. Review before executing. No sudo required.
+# Downloads the release over HTTPS, verifies SHA256, and installs an isolated CLI.
+set -eu
+forge_origin='@@FORGE_URL@@'
+forge_wheel='@@FORGE_WHEEL@@'
+forge_sha='@@FORGE_SHA256@@'
+case "$(uname -s):$(uname -m)" in
+  Darwin:arm64|Darwin:x86_64|Linux:x86_64|Linux:aarch64|Linux:arm64) ;;
+  *) printf '%s\n' 'Supported: Apple Silicon/Intel macOS and 64-bit Linux/WSL.' >&2; exit 1 ;;
+esac
+if ! command -v curl >/dev/null 2>&1; then
+  printf '%s\n' 'curl is required. Install it using your OS package manager.' >&2; exit 1
+fi
+forge_tmp=$(mktemp -d)
+trap 'rm -f "$forge_tmp/$forge_wheel" "$forge_tmp/uv-install.sh"; rmdir "$forge_tmp" 2>/dev/null || true' EXIT HUP INT TERM
+printf '%s\n' 'Downloading Scrappy Forge. No model key is requested by this installer.'
+curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
+  "$forge_origin/downloads/$forge_wheel" -o "$forge_tmp/$forge_wheel"
+if command -v shasum >/dev/null 2>&1; then
+  forge_actual=$(shasum -a 256 "$forge_tmp/$forge_wheel" | cut -d ' ' -f 1)
+elif command -v sha256sum >/dev/null 2>&1; then
+  forge_actual=$(sha256sum "$forge_tmp/$forge_wheel" | cut -d ' ' -f 1)
+else
+  printf '%s\n' 'A SHA256 verifier (shasum or sha256sum) is required.' >&2; exit 1
+fi
+if [ "$forge_actual" != "$forge_sha" ]; then
+  printf '%s\n' 'Release checksum mismatch. Nothing was installed.' >&2; exit 1
+fi
+if command -v uv >/dev/null 2>&1; then
+  forge_uv=$(command -v uv)
+else
+  printf '%s\n' 'Installing uv from Astral so Forge can use its own Python. No system Python is modified.'
+  curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
+    'https://astral.sh/uv/install.sh' -o "$forge_tmp/uv-install.sh"
+  UV_INSTALL_DIR="$HOME/.local/bin" UV_NO_MODIFY_PATH=1 sh "$forge_tmp/uv-install.sh"
+  forge_uv="$HOME/.local/bin/uv"
+  if [ ! -x "$forge_uv" ]; then
+    printf '%s\n' 'uv installed outside the expected directory. Add uv to PATH, then run this installer again.' >&2; exit 1
+  fi
+fi
+"$forge_uv" --no-config tool install --python 3.12 "$forge_tmp/$forge_wheel[auth]"
+forge_bin=$("$forge_uv" --no-config tool dir --bin)
+"$forge_bin/scrappy-forge" account configure "$forge_origin"
+"$forge_uv" --no-config tool update-shell
+printf '\n%s\n' 'Installed. Open a new terminal, cd into your project, then run: forge'
+printf '%s\n' 'First run asks for your OpenRouter key locally. GitHub access is not required.'
+printf '%s\n' 'The package is pure Python; native dependencies/Python must support your macOS version.'

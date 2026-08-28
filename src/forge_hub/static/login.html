@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scrappy Forge · Sign in</title><link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/login.js" defer></script></head>
+<body><main><header><span class="mark" aria-hidden="true">sf_</span><p>SCRAPPY FORGE</p></header>
+<h1>Your workspace.<br>Your agent.</h1><p class="muted">Coding happens in your terminal. This page is only for your Forge account.</p>
+<section aria-labelledby="account-title"><h2 id="account-title">Sign in</h2>
+<p id="availability" role="status">Checking account availability…</p>
+<form id="login-form"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="username" maxlength="250" required>
+<label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" maxlength="1000" required>
+<button id="submit" type="submit" disabled>Sign in</button><button id="signup" type="button" class="secondary" disabled>Create an account</button></form>
+<p id="message" role="status" aria-live="polite"></p>
+<div id="profile" hidden><p id="account-email"></p><p>Plan: local BYOK. Your model API key stays on your computer.</p><button id="logout" type="button">Sign out</button></div>
+</section><footer><code>forge setup</code><span>Enter your model key in the terminal, never on this page.</span>
+<a href="/install.sh">Inspect the terminal installer</a><a href="/guide">User guide</a><a href="/plans">Plans and availability</a><a href="/world-model">World model</a></footer></main></body></html>

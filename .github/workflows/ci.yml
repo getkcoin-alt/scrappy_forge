@@ -1,0 +1,41 @@
+name: tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install -e '.[dev,auth,server]'
+      - run: ruff check src tests examples validation
+      - run: ruff format --check src tests examples validation
+      - run: pytest -q
+      - run: python validation/terminal_smoke.py
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,auth,server]'
+      - run: pytest -q
+      - run: python validation/terminal_smoke.py
+      - run: forge doctor
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t scrappy-forge:test .
+      - run: docker run -d --name forge-hub -p 8080:8080 scrappy-forge:test
+      - run: curl --retry 12 --retry-delay 2 --retry-connrefused --fail http://127.0.0.1:8080/readyz
+      - run: curl --fail http://127.0.0.1:8080/v1/releases/latest
+      - if: always()
+        run: docker logs forge-hub

@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scrappy-forge"
+version = "0.4.0"
+description = "Terminal coding agent with persistent memory, compaction and permissioned MCP tools"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["requests>=2.32.3,<3", "httpx>=0.28.1,<0.29", "jsonschema>=4.23,<5", "rich>=13,<15", "prompt-toolkit>=3,<4", "mcp>=1.29.1,<1.30"]
+
+[project.optional-dependencies]
+auth = ["cryptography>=50.0.1,<51"]
+server = ["starlette==1.6.0", "uvicorn==0.52.4"]
+dev = ["pytest>=8,<10", "pytest-asyncio>=0.24,<2", "ruff>=0.12,<1", "httpx2==2.12.0"]
+
+[project.scripts]
+forge = "scrappy_forge.cli:main"
+scrappy-forge = "scrappy_forge.cli:main"
+forge-hub = "forge_hub.app:main"
+
+[tool.setuptools.package-data]
+forge_hub = ["static/*", "install.sh.in"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 110
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
