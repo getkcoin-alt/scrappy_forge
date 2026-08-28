@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker build -t scrappy-forge:test .
       - run: docker run -d --name forge-hub -p 8080:8080 scrappy-forge:test
-      - run: curl --retry 12 --retry-delay 2 --retry-connrefused --fail http://127.0.0.1:8080/readyz
+      - run: curl --retry 12 --retry-delay 2 --retry-all-errors --max-time 5 --fail http://127.0.0.1:8080/readyz
       - run: curl --fail http://127.0.0.1:8080/v1/releases/latest
       - if: always()
         run: docker logs forge-hub

@@ -39,9 +39,21 @@ local files/keys or disable offline local coding through this backend.
 
 ## Install on macOS or Linux
 
-The deployed Railway service serves `/install.sh`, `/guide`, `/plans` and
-`/v1/releases/latest`. Review the installer on the verified release-service URL,
-then run it. It installs a private Python 3.12 environment through uv, without
+Public release service: [Scrappy Forge](https://forge-hub-production.up.railway.app).
+[User guide](https://forge-hub-production.up.railway.app/guide) ·
+[Plans](https://forge-hub-production.up.railway.app/plans) ·
+[Release metadata](https://forge-hub-production.up.railway.app/v1/releases/latest).
+
+Download, inspect, then run the installer:
+
+```sh
+forge_installer=$(mktemp)
+curl --proto '=https' --tlsv1.2 -fL 'https://forge-hub-production.up.railway.app/install.sh' -o "$forge_installer"
+less "$forge_installer"
+sh "$forge_installer"
+```
+
+It installs a private Python 3.12 environment through uv, without
 sudo or access to the private GitHub repository. It also configures the optional
 account-service origin. Open a new terminal, enter your project, and run `forge`.
 
