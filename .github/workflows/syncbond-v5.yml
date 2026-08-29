@@ -33,3 +33,5 @@ jobs:
           tests/test_omni_eval.py
           tests/test_omni_eval_cli.py
           tests/test_omni_evidence.py
+      - name: Run controlled evolution dry cycle
+        run: python validation/controlled_evolution_smoke.py
