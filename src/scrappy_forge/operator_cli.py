@@ -11,58 +11,22 @@ import json
 import sys
 from pathlib import Path
 
-from .capabilities import Capability, CapabilityBroker
+from .capabilities import append_pending_request, broker_from_settings, load_pending_requests
 from .config import Settings
 from .evaluator import EvaluatorReview, aggregate_reviews
-from .util import ForgeError, atomic_json, clean
-
-
-def _broker(settings: Settings) -> CapabilityBroker:
-    broker = CapabilityBroker()
-    broker.register(
-        Capability(
-            capability_id="model-provider",
-            kind="inference",
-            provider=settings.provider,
-            handle=f"capability://inference/{settings.provider}",
-            status="available",
-            permission_class="red",
-            description="Configured model inference provider",
-        )
-    )
-    for name in sorted(settings.mcp):
-        broker.register(
-            Capability(
-                capability_id=f"mcp-{name}",
-                kind="mcp",
-                provider=name,
-                handle=f"capability://mcp/{name}",
-                status="available",
-                permission_class="red",
-                description=f"Configured MCP server: {name}",
-            )
-        )
-    return broker
-
-
-def _request_path(settings: Settings) -> Path:
-    return settings.home / "operator" / "capability_requests.json"
-
-
-def _load_requests(path: Path) -> list[dict]:
-    if not path.exists():
-        return []
-    value = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(value, list):
-        raise ForgeError("Capability request store is malformed")
-    return value
+from .util import ForgeError, clean
 
 
 def _capability(argv: list[str]) -> int:
     settings = Settings.load(None)
-    broker = _broker(settings)
+    broker = broker_from_settings(settings)
     if not argv or argv[0] == "list":
-        print(json.dumps({"available": broker.list(), "pending": _load_requests(_request_path(settings))}, indent=2))
+        print(
+            json.dumps(
+                {"available": broker.list(), "pending": load_pending_requests(settings.home)},
+                indent=2,
+            )
+        )
         return 0
     if argv[0] == "request":
         if len(argv) < 4:
@@ -89,10 +53,7 @@ def _capability(argv: list[str]) -> int:
             suggested_provider=provider,
             secret_required=secret_required,
         )
-        path = _request_path(settings)
-        values = _load_requests(path)
-        values.append(request.to_dict())
-        atomic_json(path, values)
+        append_pending_request(settings.home, request)
         print(json.dumps(request.to_dict(), indent=2))
         return 0
     raise ForgeError("Usage: scrappy capability list | request ...")
