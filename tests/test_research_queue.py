@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import json
+
 import pytest
 
 from scrappy_forge.experience_ingest import (
@@ -7,11 +10,46 @@ from scrappy_forge.experience_ingest import (
     ingest_experience_bundle,
 )
 from scrappy_forge.research_queue import plan_benchmark, registered_suites
-from tests.test_experience_ingest import _bundle
+
+
+def _canonical(value: dict) -> bytes:
+    return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
 
 
 def _request() -> dict:
-    candidate = ingest_experience_bundle(_bundle())
+    correlation = "11111111-1111-4111-8111-111111111111"
+    objective = "22222222-2222-4222-8222-222222222222"
+    envelope = {
+        "protocol": "SYNCBOND",
+        "schema_version": "5.0.0",
+        "event_id": "33333333-3333-4333-8333-333333333333",
+        "correlation_id": correlation,
+        "actor_id": "service:vault-zeta",
+        "actor_kind": "service",
+        "event_type": "experience.recorded",
+        "source": "vault-zeta",
+        "created_at": "2026-08-29T00:01:00+00:00",
+        "resolution": "known",
+        "confidence": None,
+        "provenance": [],
+        "payload": {
+            "objective_id": objective,
+            "summary": "Verified task failure.",
+            "outcome": "failed",
+            "evidence": ["state=failed"],
+            "lessons": [],
+        },
+    }
+    bundle = {
+        "bundle_format": "syncbond.experience-evidence.v1",
+        "protocol": "SYNCBOND",
+        "schema_version": "5.0.0",
+        "correlation_id": correlation,
+        "remote_objective_id": objective,
+        "envelope": envelope,
+    }
+    bundle["bundle_sha256"] = hashlib.sha256(_canonical(bundle)).hexdigest()
+    candidate = ingest_experience_bundle(bundle)
     assert candidate is not None
     return experiment_request_envelope(candidate)
 
