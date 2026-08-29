@@ -16,6 +16,7 @@ DecisionStatus = Literal["improvement", "rejected", "inconclusive"]
 @dataclass(frozen=True, slots=True)
 class EvolutionThresholds:
     min_mean_goal_score_delta: float = 0.05
+    max_per_scenario_goal_regression: float = 0.0
     require_no_completion_regression: bool = True
     require_no_invalid_action_regression: bool = True
     require_no_intervention_regression: bool = True
@@ -24,6 +25,8 @@ class EvolutionThresholds:
     def __post_init__(self) -> None:
         if not 0.0 <= self.min_mean_goal_score_delta <= 1.0:
             raise ValueError("min_mean_goal_score_delta must be between 0 and 1")
+        if not 0.0 <= self.max_per_scenario_goal_regression <= 1.0:
+            raise ValueError("max_per_scenario_goal_regression must be between 0 and 1")
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,6 +125,23 @@ def compare_evaluations(
 
     reasons: list[str] = []
     regressions = False
+    for scenario_id in sorted(baseline):
+        left = baseline[scenario_id]
+        right = candidate[scenario_id]
+        scenario_delta = float(right["goal_score"]) - float(left["goal_score"])
+        if scenario_delta < -thresholds.max_per_scenario_goal_regression:
+            reasons.append(
+                f"candidate goal score regressed by {-scenario_delta:.4f} on {scenario_id}"
+            )
+            regressions = True
+        if (
+            thresholds.require_no_completion_regression
+            and left.get("complete") is True
+            and right.get("complete") is not True
+        ):
+            reasons.append(f"candidate lost completion on {scenario_id}")
+            regressions = True
+
     if thresholds.require_no_completion_regression and candidate_complete < baseline_complete:
         reasons.append("candidate completes fewer held-out scenarios")
         regressions = True
