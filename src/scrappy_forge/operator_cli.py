@@ -11,7 +11,7 @@ import json
 import sys
 from pathlib import Path
 
-from .capabilities import append_pending_request, broker_from_settings, load_pending_requests
+from .capabilities import append_pending_request, broker_from_settings, unresolved_pending_requests
 from .config import Settings
 from .evaluator import EvaluatorReview, aggregate_reviews
 from .util import ForgeError, clean
@@ -23,7 +23,7 @@ def _capability(argv: list[str]) -> int:
     if not argv or argv[0] == "list":
         print(
             json.dumps(
-                {"available": broker.list(), "pending": load_pending_requests(settings.home)},
+                {"available": broker.list(), "pending": unresolved_pending_requests(settings)},
                 indent=2,
             )
         )
