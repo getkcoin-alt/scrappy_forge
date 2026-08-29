@@ -88,7 +88,8 @@ class CapabilityBroker:
         return [
             item
             for item in self._capabilities.values()
-            if item.kind.lower() == wanted and item.status == "available"
+            if item.status == "available"
+            and (item.kind.lower() == wanted or item.provider.lower() == wanted)
         ]
 
     def request(
@@ -149,6 +150,21 @@ def broker_from_settings(settings) -> CapabilityBroker:
     return broker
 
 
+def unresolved_pending_requests(settings) -> list[dict]:
+    """Return only requests not satisfied by the current configured inventory."""
+    broker = broker_from_settings(settings)
+    unresolved = []
+    for item in load_pending_requests(settings.home):
+        kind = str(item.get("kind") or "").strip()
+        suggested = str(item.get("suggested_provider") or "").strip()
+        if kind and broker.find(kind):
+            continue
+        if suggested and broker.find(suggested):
+            continue
+        unresolved.append(item)
+    return unresolved
+
+
 __all__ = [
     "Capability",
     "CapabilityBroker",
@@ -158,4 +174,5 @@ __all__ = [
     "broker_from_settings",
     "load_pending_requests",
     "request_store_path",
+    "unresolved_pending_requests",
 ]
