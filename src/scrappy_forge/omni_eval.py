@@ -257,9 +257,7 @@ async def evaluate_scenario(
 
         action_attempts += 1
         known_actions = {
-            str(item.get("id"))
-            for item in observation.get("available_actions", [])
-            if isinstance(item, dict)
+            str(item.get("id")) for item in observation.get("available_actions", []) if isinstance(item, dict)
         }
         if action_id not in known_actions:
             invalid_actions += 1
