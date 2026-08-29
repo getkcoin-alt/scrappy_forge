@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 from uuid import UUID
 
-from scrappy_forge.syncbond import SYNCBOND_VERSION, validate_envelope
+from scrappy_forge.syncbond import SYNCBOND_VERSION, make_envelope, validate_envelope
 
 BUNDLE_FORMAT = "syncbond.experience-evidence.v1"
 Outcome = Literal["failed", "partial", "blocked"]
@@ -122,4 +122,40 @@ def ingest_experience_bundle(bundle: dict[str, Any]) -> ExperimentCandidate | No
     )
 
 
-__all__ = ["BUNDLE_FORMAT", "ExperimentCandidate", "ingest_experience_bundle"]
+def experiment_request_envelope(candidate: ExperimentCandidate) -> dict[str, Any]:
+    """Create a traceable research request without starting an experiment."""
+
+    return make_envelope(
+        actor_id="node:scrappy-forge",
+        actor_kind="node",
+        event_type="experiment.requested",
+        source="scrappy-forge",
+        correlation_id=candidate.correlation_id,
+        resolution="pending",
+        payload={
+            "trigger": "verified-experience",
+            "remote_objective_id": str(candidate.remote_objective_id),
+            "outcome": candidate.outcome,
+            "summary": candidate.summary,
+            "evidence": list(candidate.evidence),
+            "source_bundle_sha256": candidate.source_bundle_sha256,
+            "source_event_id": str(candidate.source_event_id),
+            "execution_authority": False,
+            "next_stage": "research-and-benchmark",
+        },
+        provenance=[
+            {
+                "source": "vault-zeta",
+                "reference": f"syncbond:event:{candidate.source_event_id}",
+                "bundle_sha256": candidate.source_bundle_sha256,
+            }
+        ],
+    )
+
+
+__all__ = [
+    "BUNDLE_FORMAT",
+    "ExperimentCandidate",
+    "experiment_request_envelope",
+    "ingest_experience_bundle",
+]
