@@ -43,9 +43,18 @@ def _require_text(value: Any, name: str) -> str:
 
 
 def _entity_index(value: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Validate entities from either raw-list or normalized-map form.
+
+    `validate_scenario()` is intentionally idempotent: callers may pass a raw
+    JSON scenario or a value already returned by this validator. We still walk
+    every normalized entity again rather than trusting an internal-looking map.
+    """
+
     entities = value.get("entities")
+    if isinstance(entities, dict):
+        entities = list(entities.values())
     if not isinstance(entities, list) or not entities:
-        raise ScenarioError("entities must be a non-empty list")
+        raise ScenarioError("entities must be a non-empty list or normalized map")
     if len(entities) > MAX_ENTITIES:
         raise ScenarioError(f"entities exceed limit {MAX_ENTITIES}")
 
@@ -60,11 +69,20 @@ def _entity_index(value: dict[str, Any]) -> dict[str, dict[str, Any]]:
         attributes = raw.get("attributes", {})
         if not isinstance(attributes, dict):
             raise ScenarioError(f"entity {entity_id} attributes must be an object")
-        out[entity_id] = {"id": entity_id, "kind": kind, "attributes": copy.deepcopy(attributes)}
+        out[entity_id] = {
+            "id": entity_id,
+            "kind": kind,
+            "attributes": copy.deepcopy(attributes),
+        }
     return out
 
 
-def _conditions(raw: Any, *, name: str, entities: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+def _conditions(
+    raw: Any,
+    *,
+    name: str,
+    entities: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
     if raw is None:
         return []
     if not isinstance(raw, list):
@@ -79,12 +97,23 @@ def _conditions(raw: Any, *, name: str, entities: dict[str, dict[str, Any]]) -> 
             raise ScenarioError(f"{name} references unknown entity: {entity}")
         if "equals" not in item:
             raise ScenarioError(f"{name} condition requires equals")
-        out.append({"entity": entity, "attribute": attribute, "equals": copy.deepcopy(item["equals"])})
+        out.append(
+            {
+                "entity": entity,
+                "attribute": attribute,
+                "equals": copy.deepcopy(item["equals"]),
+            }
+        )
     return out
 
 
 def validate_scenario(value: dict[str, Any]) -> dict[str, Any]:
-    """Validate and normalize one Omni-City v0 scenario."""
+    """Validate and normalize one Omni-City v0 scenario.
+
+    The result may safely be passed back into this function. That matters for
+    loaders, persistence and benchmark harnesses that validate at more than one
+    trust boundary.
+    """
 
     if not isinstance(value, dict) or value.get("schema_version") != SCHEMA_VERSION:
         raise ScenarioError(f"schema_version must be {SCHEMA_VERSION}")
@@ -105,7 +134,9 @@ def validate_scenario(value: dict[str, Any]) -> dict[str, Any]:
         target = _require_text(item.get("target"), "relation.target")
         if source not in entities or target not in entities:
             raise ScenarioError(f"relation references unknown entity: {source} -> {target}")
-        normalized_relations.append({"source": source, "relation": relation, "target": target})
+        normalized_relations.append(
+            {"source": source, "relation": relation, "target": target}
+        )
 
     raw_goals = value.get("goals")
     if not isinstance(raw_goals, list) or not raw_goals or len(raw_goals) > MAX_GOALS:
@@ -121,8 +152,10 @@ def validate_scenario(value: dict[str, Any]) -> dict[str, Any]:
         goals.append({**conditions[0], "weight": float(weight)})
 
     raw_actions = value.get("actions")
+    if isinstance(raw_actions, dict):
+        raw_actions = list(raw_actions.values())
     if not isinstance(raw_actions, list) or not raw_actions or len(raw_actions) > MAX_ACTIONS:
-        raise ScenarioError("actions must be a non-empty bounded list")
+        raise ScenarioError("actions must be a non-empty list or normalized map")
     actions: dict[str, dict[str, Any]] = {}
     for raw in raw_actions:
         if not isinstance(raw, dict):
@@ -133,13 +166,23 @@ def validate_scenario(value: dict[str, Any]) -> dict[str, Any]:
         cost = raw.get("cost", 0)
         if not isinstance(cost, (int, float)) or isinstance(cost, bool) or cost < 0:
             raise ScenarioError(f"action {action_id} cost must be non-negative")
-        requires = _conditions(raw.get("requires", []), name=f"action {action_id} requires", entities=entities)
-        effects = _conditions(raw.get("effects", []), name=f"action {action_id} effects", entities=entities)
+        requires = _conditions(
+            raw.get("requires", []),
+            name=f"action {action_id} requires",
+            entities=entities,
+        )
+        effects = _conditions(
+            raw.get("effects", []),
+            name=f"action {action_id} effects",
+            entities=entities,
+        )
         if not effects:
             raise ScenarioError(f"action {action_id} must have at least one effect")
         actions[action_id] = {
             "id": action_id,
-            "description": _require_text(raw.get("description"), f"action {action_id} description"),
+            "description": _require_text(
+                raw.get("description"), f"action {action_id} description"
+            ),
             "cost": float(cost),
             "requires": requires,
             "effects": effects,
@@ -184,6 +227,8 @@ class OmniCity:
     events: list[dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
+        # Revalidate even a pre-normalized loader result. Trust boundaries can be
+        # crossed through persistence or caller mutation between load and run.
         self.scenario = copy.deepcopy(validate_scenario(self.scenario))
 
     @property
@@ -227,13 +272,16 @@ class OmniCity:
             raise ActionRejected(f"unknown simulated action: {action_id}")
         if self.spent + action["cost"] > self.scenario["budget"]:
             raise ActionRejected(
-                f"action {action_id} exceeds budget: {self.spent + action['cost']} > {self.scenario['budget']}"
+                f"action {action_id} exceeds budget: "
+                f"{self.spent + action['cost']} > {self.scenario['budget']}"
             )
 
         unmet = [
             condition
             for condition in action["requires"]
-            if not _matches(self.scenario["entities"][condition["entity"]], condition)
+            if not _matches(
+                self.scenario["entities"][condition["entity"]], condition
+            )
         ]
         if unmet:
             detail = ", ".join(
@@ -286,7 +334,9 @@ class OmniCity:
                     "entity": goal["entity"],
                     "attribute": goal["attribute"],
                     "target": copy.deepcopy(goal["equals"]),
-                    "observed": copy.deepcopy(entity["attributes"].get(goal["attribute"])),
+                    "observed": copy.deepcopy(
+                        entity["attributes"].get(goal["attribute"])
+                    ),
                     "weight": goal["weight"],
                     "achieved": ok,
                 }
@@ -304,10 +354,16 @@ class OmniCity:
         }
 
 
-def run_sequence(scenario: dict[str, Any], action_ids: list[str]) -> dict[str, Any]:
+def run_sequence(
+    scenario: dict[str, Any], action_ids: list[str]
+) -> dict[str, Any]:
     """Run a candidate plan and return score + auditable simulation events."""
 
     city = OmniCity(scenario)
     for action_id in action_ids:
         city.apply(action_id)
-    return {"score": city.score(), "events": copy.deepcopy(city.events), "final": city.observe()}
+    return {
+        "score": city.score(),
+        "events": copy.deepcopy(city.events),
+        "final": city.observe(),
+    }
