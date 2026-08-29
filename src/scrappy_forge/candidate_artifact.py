@@ -92,6 +92,22 @@ class PromotionDecision:
     deploy_authority: bool = False
 
 
+@dataclass(frozen=True, slots=True)
+class PromotionRecord:
+    record_schema: str
+    manifest_sha256: str
+    eligible_for_merge: bool
+    security_evidence_ref: str
+    regression_evidence_ref: str
+    approver_actor_id: str
+    approval_decision: ApprovalDecision
+    reasons: tuple[str, ...]
+    execution_authority: bool
+    merge_authority: bool
+    deploy_authority: bool
+    record_sha256: str
+
+
 def _manifest_body(manifest: CandidateManifest) -> dict[str, Any]:
     value = asdict(manifest)
     value.pop("manifest_sha256")
@@ -211,12 +227,45 @@ def evaluate_promotion(
     )
 
 
+def build_promotion_record(
+    decision: PromotionDecision,
+    *,
+    security: CheckAttestation,
+    regression: CheckAttestation,
+    approval: HumanApproval,
+) -> PromotionRecord:
+    """Build a portable, content-addressed record of the promotion decision."""
+
+    for item in (security, regression, approval):
+        if not hmac.compare_digest(item.manifest_sha256, decision.manifest_sha256):
+            raise ValueError("promotion record inputs must reference the same manifest")
+    if decision.execution_authority or decision.merge_authority or decision.deploy_authority:
+        raise ValueError("promotion decision unexpectedly carries authority")
+
+    body = {
+        "record_schema": "scrappy-promotion-record.v0.2",
+        "manifest_sha256": decision.manifest_sha256,
+        "eligible_for_merge": decision.eligible_for_merge,
+        "security_evidence_ref": security.evidence_ref,
+        "regression_evidence_ref": regression.evidence_ref,
+        "approver_actor_id": approval.approver_actor_id,
+        "approval_decision": approval.decision,
+        "reasons": tuple(decision.reasons),
+        "execution_authority": False,
+        "merge_authority": False,
+        "deploy_authority": False,
+    }
+    return PromotionRecord(**body, record_sha256=_sha256(body))
+
+
 __all__ = [
     "CandidateManifest",
     "CheckAttestation",
     "HumanApproval",
     "PromotionDecision",
+    "PromotionRecord",
     "build_candidate_manifest",
+    "build_promotion_record",
     "evaluate_promotion",
     "verify_candidate_manifest",
 ]
