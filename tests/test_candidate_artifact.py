@@ -8,6 +8,7 @@ from scrappy_forge.candidate_artifact import (
     CheckAttestation,
     HumanApproval,
     build_candidate_manifest,
+    build_promotion_record,
     evaluate_promotion,
     verify_candidate_manifest,
 )
@@ -194,7 +195,10 @@ def test_attestation_for_other_manifest_cannot_be_replayed():
 
 def test_naive_attestation_timestamp_is_rejected():
     manifest = _manifest()
-    security = replace(_security(manifest.manifest_sha256), observed_at="2026-08-29T02:30:00")
+    security = replace(
+        _security(manifest.manifest_sha256),
+        observed_at="2026-08-29T02:30:00",
+    )
 
     with pytest.raises(ValueError, match="include a timezone"):
         evaluate_promotion(
@@ -202,4 +206,51 @@ def test_naive_attestation_timestamp_is_rejected():
             security=security,
             regression=_regression(manifest.manifest_sha256),
             approval=_approval(manifest.manifest_sha256),
+        )
+
+
+def test_promotion_record_is_content_addressed_and_inert():
+    manifest = _manifest()
+    security = _security(manifest.manifest_sha256)
+    regression = _regression(manifest.manifest_sha256)
+    approval = _approval(manifest.manifest_sha256)
+    decision = evaluate_promotion(
+        manifest,
+        security=security,
+        regression=regression,
+        approval=approval,
+    )
+
+    record = build_promotion_record(
+        decision,
+        security=security,
+        regression=regression,
+        approval=approval,
+    )
+
+    assert len(record.record_sha256) == 64
+    assert record.eligible_for_merge is True
+    assert record.execution_authority is False
+    assert record.merge_authority is False
+    assert record.deploy_authority is False
+
+
+def test_promotion_record_rejects_mixed_manifest_evidence():
+    manifest = _manifest()
+    security = _security(manifest.manifest_sha256)
+    regression = _regression(manifest.manifest_sha256)
+    approval = _approval(manifest.manifest_sha256)
+    decision = evaluate_promotion(
+        manifest,
+        security=security,
+        regression=regression,
+        approval=approval,
+    )
+
+    with pytest.raises(ValueError, match="same manifest"):
+        build_promotion_record(
+            decision,
+            security=replace(security, manifest_sha256="f" * 64),
+            regression=regression,
+            approval=approval,
         )
