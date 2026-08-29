@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e ".[dev]"
+      - run: python -m pip install -e ".[dev,auth]"
       - run: >-
           pytest -q
           tests/test_syncbond.py
@@ -27,6 +27,7 @@ jobs:
           tests/test_evolution.py
           tests/test_experiment_runner.py
           tests/test_candidate_artifact.py
+          tests/test_signed_approval.py
           tests/test_omni_city.py
           tests/test_omni_eval.py
           tests/test_omni_eval_cli.py
