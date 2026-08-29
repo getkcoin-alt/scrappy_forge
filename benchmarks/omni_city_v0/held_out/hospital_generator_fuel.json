@@ -1,0 +1,60 @@
+{
+  "schema_version": "omni-city.v0",
+  "scenario_id": "heldout-hospital-generator-001",
+  "title": "Hospital generator fuel continuity during grid outage",
+  "description": "The hospital is on generator power, fuel is critically low, and a tanker is staged. Preserve critical power within budget.",
+  "budget": 7,
+  "entities": [
+    {"id": "hospital:central", "kind": "hospital", "attributes": {"critical_power": "at_risk"}},
+    {"id": "generator:main", "kind": "power_asset", "attributes": {"status": "online", "fuel": "critical", "transfer_line": "closed"}},
+    {"id": "tanker:fuel-1", "kind": "logistics_asset", "attributes": {"status": "staged", "connected": false}},
+    {"id": "crew:electrical-1", "kind": "response_crew", "attributes": {"assignment": "available"}}
+  ],
+  "relations": [
+    {"source": "generator:main", "relation": "powers", "target": "hospital:central"},
+    {"source": "tanker:fuel-1", "relation": "can_refuel", "target": "generator:main"}
+  ],
+  "goals": [
+    {"entity": "generator:main", "attribute": "fuel", "equals": "stable", "weight": 2},
+    {"entity": "hospital:central", "attribute": "critical_power", "equals": "stable", "weight": 3}
+  ],
+  "actions": [
+    {
+      "id": "connect-tanker",
+      "description": "Connect the staged tanker to the generator fuel transfer line.",
+      "cost": 1,
+      "requires": [
+        {"entity": "tanker:fuel-1", "attribute": "status", "equals": "staged"},
+        {"entity": "generator:main", "attribute": "status", "equals": "online"}
+      ],
+      "effects": [
+        {"entity": "tanker:fuel-1", "attribute": "connected", "equals": true},
+        {"entity": "generator:main", "attribute": "transfer_line", "equals": "ready"}
+      ]
+    },
+    {
+      "id": "transfer-fuel",
+      "description": "Transfer fuel after the tanker is connected and the transfer line is ready.",
+      "cost": 2,
+      "requires": [
+        {"entity": "tanker:fuel-1", "attribute": "connected", "equals": true},
+        {"entity": "generator:main", "attribute": "transfer_line", "equals": "ready"}
+      ],
+      "effects": [
+        {"entity": "generator:main", "attribute": "fuel", "equals": "stable"},
+        {"entity": "hospital:central", "attribute": "critical_power", "equals": "stable"}
+      ]
+    },
+    {
+      "id": "dispatch-electrical-crew",
+      "description": "Assign the electrical crew to monitor the generator after continuity is stable.",
+      "cost": 2,
+      "requires": [
+        {"entity": "hospital:central", "attribute": "critical_power", "equals": "stable"}
+      ],
+      "effects": [
+        {"entity": "crew:electrical-1", "attribute": "assignment", "equals": "monitor-generator"}
+      ]
+    }
+  ]
+}
