@@ -1,8 +1,16 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
-from scrappy_forge.capabilities import Capability, CapabilityBroker
+from scrappy_forge.capabilities import (
+    Capability,
+    CapabilityBroker,
+    append_pending_request,
+    broker_from_settings,
+    load_pending_requests,
+)
 from scrappy_forge.evaluator import EvaluatorReview, aggregate_reviews
 from scrappy_forge.policy import permission_class
 
@@ -50,6 +58,36 @@ def test_capability_request_is_pending_and_contains_no_secret_value():
     assert value["secret_required"] is True
     assert "password" not in value
     assert "credential" not in value
+
+
+def test_pending_capability_request_persists_without_secret(tmp_path):
+    broker = CapabilityBroker()
+    request = broker.request(
+        kind="railway",
+        reason="deployment verification requires service state",
+        required_scope="project:demo read+deploy",
+        suggested_provider="railway",
+    )
+    append_pending_request(tmp_path, request)
+
+    loaded = load_pending_requests(tmp_path)
+    assert loaded == [request.to_dict()]
+    serialized = str(loaded).lower()
+    assert "api_key" not in serialized
+    assert "password" not in serialized
+
+
+def test_configured_mcp_is_discovered_as_existing_capability(tmp_path):
+    settings = SimpleNamespace(
+        provider="openrouter",
+        mcp={"railway": {"transport": "stdio"}},
+        home=tmp_path,
+    )
+    broker = broker_from_settings(settings)
+
+    matches = broker.find("mcp")
+    assert [item.handle for item in matches] == ["capability://mcp/railway"]
+    assert load_pending_requests(tmp_path) == []
 
 
 def _review(manifest: str, verdict: str, confidence: float, evaluator: str) -> EvaluatorReview:
