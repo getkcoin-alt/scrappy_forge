@@ -7,9 +7,13 @@ secret managers; model context should not receive them.
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Literal
 from uuid import uuid4
+
+from .util import ForgeError, atomic_json
 
 CapabilityStatus = Literal["available", "missing", "disabled"]
 PermissionClass = Literal["green", "amber", "red"]
@@ -39,6 +43,29 @@ class CapabilityRequest:
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+
+def request_store_path(home: Path) -> Path:
+    return home / "operator" / "capability_requests.json"
+
+
+def load_pending_requests(home: Path) -> list[dict]:
+    path = request_store_path(home)
+    if not path.exists():
+        return []
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ForgeError("Capability request store is malformed") from exc
+    if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
+        raise ForgeError("Capability request store is malformed")
+    return value
+
+
+def append_pending_request(home: Path, request: CapabilityRequest) -> None:
+    values = load_pending_requests(home)
+    values.append(request.to_dict())
+    atomic_json(request_store_path(home), values)
 
 
 class CapabilityBroker:
@@ -93,4 +120,42 @@ class CapabilityBroker:
         return [asdict(value) for value in self._requests.values()]
 
 
-__all__ = ["Capability", "CapabilityBroker", "CapabilityRequest", "PermissionClass"]
+def broker_from_settings(settings) -> CapabilityBroker:
+    """Build the current capability inventory without reading credential values."""
+    broker = CapabilityBroker()
+    broker.register(
+        Capability(
+            capability_id="model-provider",
+            kind="inference",
+            provider=settings.provider,
+            handle=f"capability://inference/{settings.provider}",
+            status="available",
+            permission_class="red",
+            description="Configured model inference provider",
+        )
+    )
+    for name in sorted(settings.mcp):
+        broker.register(
+            Capability(
+                capability_id=f"mcp-{name}",
+                kind="mcp",
+                provider=name,
+                handle=f"capability://mcp/{name}",
+                status="available",
+                permission_class="red",
+                description=f"Configured MCP server: {name}",
+            )
+        )
+    return broker
+
+
+__all__ = [
+    "Capability",
+    "CapabilityBroker",
+    "CapabilityRequest",
+    "PermissionClass",
+    "append_pending_request",
+    "broker_from_settings",
+    "load_pending_requests",
+    "request_store_path",
+]
