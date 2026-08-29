@@ -15,9 +15,11 @@ import argparse
 import asyncio
 import json
 from pathlib import Path
+from uuid import UUID
 
 from .config import Settings
 from .omni_eval import EvaluationConfig, ProviderController, evaluate_file
+from .omni_evidence import experiment_result_envelope
 from .providers import ChatProvider
 from .util import ForgeError, atomic_json, encoded, sha
 
@@ -32,6 +34,10 @@ def _parser() -> argparse.ArgumentParser:
         "--output-dir",
         type=Path,
         help="Optional directory for content-addressed JSON reports; default prints JSON.",
+    )
+    parser.add_argument(
+        "--correlation-id",
+        help="Optional originating SYNCBOND correlation UUID to preserve in experiment.result.",
     )
     parser.add_argument("--max-requests", type=int, default=16)
     parser.add_argument("--max-actions", type=int, default=12)
@@ -61,6 +67,7 @@ async def _run(args: argparse.Namespace) -> int:
         max_action_attempts=args.max_actions,
         scenario_seed=args.seed,
     )
+    correlation_id = UUID(args.correlation_id) if args.correlation_id else None
     provider = ChatProvider(settings)
     try:
         controller = ProviderController(
@@ -71,11 +78,13 @@ async def _run(args: argparse.Namespace) -> int:
     finally:
         provider.close()
 
+    event = experiment_result_envelope(report, correlation_id=correlation_id)
     if args.output_dir is None:
-        print(json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False))
+        output = {"report": report, "syncbond": event}
     else:
         path = persist_report(args.output_dir, report)
-        print(path)
+        output = {"report_path": str(path), "syncbond": event}
+    print(json.dumps(output, indent=2, sort_keys=True, ensure_ascii=False))
     return 0 if report["complete"] else 2
 
 
