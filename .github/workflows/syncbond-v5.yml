@@ -24,6 +24,8 @@ jobs:
           tests/test_syncbond.py
           tests/test_experience_ingest.py
           tests/test_research_queue.py
+          tests/test_evolution.py
+          tests/test_experiment_runner.py
           tests/test_omni_city.py
           tests/test_omni_eval.py
           tests/test_omni_eval_cli.py
