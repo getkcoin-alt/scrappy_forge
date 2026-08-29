@@ -28,6 +28,7 @@ jobs:
           tests/test_experiment_runner.py
           tests/test_candidate_artifact.py
           tests/test_signed_approval.py
+          tests/test_signed_promotion_record.py
           tests/test_omni_city.py
           tests/test_omni_eval.py
           tests/test_omni_eval_cli.py
