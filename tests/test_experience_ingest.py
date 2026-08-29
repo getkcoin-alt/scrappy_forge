@@ -6,7 +6,10 @@ from copy import deepcopy
 
 import pytest
 
-from scrappy_forge.experience_ingest import ingest_experience_bundle
+from scrappy_forge.experience_ingest import (
+    experiment_request_envelope,
+    ingest_experience_bundle,
+)
 
 
 def _canonical(value: dict) -> bytes:
@@ -70,6 +73,20 @@ def test_failed_experience_becomes_metadata_only_candidate():
     assert candidate.outcome == "failed"
     assert candidate.evidence == ("state=failed", "verified_steps=1")
     assert len(candidate.source_bundle_sha256) == 64
+
+
+def test_candidate_becomes_pending_research_request_without_execution_authority():
+    candidate = ingest_experience_bundle(_bundle())
+    assert candidate is not None
+
+    request = experiment_request_envelope(candidate)
+
+    assert request["event_type"] == "experiment.requested"
+    assert request["correlation_id"] == str(candidate.correlation_id)
+    assert request["resolution"] == "pending"
+    assert request["payload"]["execution_authority"] is False
+    assert request["payload"]["next_stage"] == "research-and-benchmark"
+    assert request["payload"]["source_bundle_sha256"] == candidate.source_bundle_sha256
 
 
 def test_succeeded_experience_is_not_failure_driven_candidate():
