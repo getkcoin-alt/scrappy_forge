@@ -10,6 +10,7 @@ from scrappy_forge.capabilities import (
     append_pending_request,
     broker_from_settings,
     load_pending_requests,
+    unresolved_pending_requests,
 )
 from scrappy_forge.evaluator import EvaluatorReview, aggregate_reviews
 from scrappy_forge.policy import permission_class
@@ -41,6 +42,7 @@ def test_capability_broker_uses_opaque_handles_only():
     matches = broker.find("git")
     assert len(matches) == 1
     assert matches[0].handle == "capability://git/github-primary"
+    assert broker.find("github") == matches
     assert "token" not in str(broker.list()).lower()
 
 
@@ -77,17 +79,25 @@ def test_pending_capability_request_persists_without_secret(tmp_path):
     assert "password" not in serialized
 
 
-def test_configured_mcp_is_discovered_as_existing_capability(tmp_path):
-    settings = SimpleNamespace(
+def test_configured_mcp_satisfies_provider_request(tmp_path):
+    empty = SimpleNamespace(provider="openrouter", mcp={}, home=tmp_path)
+    request = CapabilityBroker().request(
+        kind="railway",
+        reason="deployment verification requires service state",
+        required_scope="project:demo",
+        suggested_provider="railway",
+    )
+    append_pending_request(tmp_path, request)
+    assert len(unresolved_pending_requests(empty)) == 1
+
+    configured = SimpleNamespace(
         provider="openrouter",
         mcp={"railway": {"transport": "stdio"}},
         home=tmp_path,
     )
-    broker = broker_from_settings(settings)
-
-    matches = broker.find("mcp")
-    assert [item.handle for item in matches] == ["capability://mcp/railway"]
-    assert load_pending_requests(tmp_path) == []
+    broker = broker_from_settings(configured)
+    assert [item.handle for item in broker.find("railway")] == ["capability://mcp/railway"]
+    assert unresolved_pending_requests(configured) == []
 
 
 def _review(manifest: str, verdict: str, confidence: float, evaluator: str) -> EvaluatorReview:
