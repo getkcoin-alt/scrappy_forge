@@ -42,6 +42,17 @@ def test_candidate_is_improvement_only_when_score_threshold_is_met_without_regre
     assert decision.execution_authority is False
 
 
+def test_better_average_cannot_hide_one_scenario_regression():
+    baseline = [_report("a", score=0.50), _report("b", score=0.50)]
+    candidate = [_report("a", score=0.40), _report("b", score=0.90)]
+
+    decision = compare_evaluations(baseline, candidate)
+
+    assert decision.goal_score_delta == pytest.approx(0.15)
+    assert decision.status == "rejected"
+    assert "regressed" in " ".join(decision.reasons)
+
+
 def test_better_score_with_more_invalid_actions_is_rejected():
     baseline = [_report("a", score=0.50, invalid=0)]
     candidate = [_report("a", score=0.90, invalid=1)]
@@ -68,7 +79,7 @@ def test_completion_regression_rejects_even_with_higher_mean_score():
     decision = compare_evaluations(baseline, candidate)
 
     assert decision.status == "rejected"
-    assert "fewer held-out scenarios" in " ".join(decision.reasons)
+    assert "lost completion" in " ".join(decision.reasons)
 
 
 def test_scenario_sets_must_match_exactly():
@@ -108,3 +119,5 @@ def test_real_world_scoped_evidence_is_rejected():
 def test_threshold_bounds_are_validated():
     with pytest.raises(ValueError, match="between 0 and 1"):
         EvolutionThresholds(min_mean_goal_score_delta=1.1)
+    with pytest.raises(ValueError, match="between 0 and 1"):
+        EvolutionThresholds(max_per_scenario_goal_regression=1.1)
