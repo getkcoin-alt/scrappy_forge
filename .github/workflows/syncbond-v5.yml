@@ -22,6 +22,7 @@ jobs:
       - run: >-
           pytest -q
           tests/test_syncbond.py
+          tests/test_experience_ingest.py
           tests/test_omni_city.py
           tests/test_omni_eval.py
           tests/test_omni_eval_cli.py
