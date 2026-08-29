@@ -134,9 +134,7 @@ def validate_scenario(value: dict[str, Any]) -> dict[str, Any]:
         target = _require_text(item.get("target"), "relation.target")
         if source not in entities or target not in entities:
             raise ScenarioError(f"relation references unknown entity: {source} -> {target}")
-        normalized_relations.append(
-            {"source": source, "relation": relation, "target": target}
-        )
+        normalized_relations.append({"source": source, "relation": relation, "target": target})
 
     raw_goals = value.get("goals")
     if not isinstance(raw_goals, list) or not raw_goals or len(raw_goals) > MAX_GOALS:
@@ -180,9 +178,7 @@ def validate_scenario(value: dict[str, Any]) -> dict[str, Any]:
             raise ScenarioError(f"action {action_id} must have at least one effect")
         actions[action_id] = {
             "id": action_id,
-            "description": _require_text(
-                raw.get("description"), f"action {action_id} description"
-            ),
+            "description": _require_text(raw.get("description"), f"action {action_id} description"),
             "cost": float(cost),
             "requires": requires,
             "effects": effects,
@@ -279,14 +275,10 @@ class OmniCity:
         unmet = [
             condition
             for condition in action["requires"]
-            if not _matches(
-                self.scenario["entities"][condition["entity"]], condition
-            )
+            if not _matches(self.scenario["entities"][condition["entity"]], condition)
         ]
         if unmet:
-            detail = ", ".join(
-                f"{c['entity']}.{c['attribute']} == {c['equals']!r}" for c in unmet
-            )
+            detail = ", ".join(f"{c['entity']}.{c['attribute']} == {c['equals']!r}" for c in unmet)
             raise ActionRejected(f"preconditions not met for {action_id}: {detail}")
 
         before = self.observe()["snapshot_id"]
@@ -334,9 +326,7 @@ class OmniCity:
                     "entity": goal["entity"],
                     "attribute": goal["attribute"],
                     "target": copy.deepcopy(goal["equals"]),
-                    "observed": copy.deepcopy(
-                        entity["attributes"].get(goal["attribute"])
-                    ),
+                    "observed": copy.deepcopy(entity["attributes"].get(goal["attribute"])),
                     "weight": goal["weight"],
                     "achieved": ok,
                 }
@@ -354,9 +344,7 @@ class OmniCity:
         }
 
 
-def run_sequence(
-    scenario: dict[str, Any], action_ids: list[str]
-) -> dict[str, Any]:
+def run_sequence(scenario: dict[str, Any], action_ids: list[str]) -> dict[str, Any]:
     """Run a candidate plan and return score + auditable simulation events."""
 
     city = OmniCity(scenario)
