@@ -3,6 +3,8 @@
   "protocol": "SYNCBOND",
   "protocol_version": "5.0.0",
   "primary_interface": "scrappy",
+  "mission": "Build intelligence that increases human capability, survives across machines and sessions, understands the real world structurally, and grows without losing judgment, safety, continuity, or the world that made it possible.",
+  "intelligence_registry": "intelligence-nodes.json",
   "components": [
     {
       "name": "scrappy-os",
@@ -44,6 +46,10 @@
     "command_center_is_source_of_truth": false,
     "forge_self_approval": false,
     "automatic_main_merge": false,
-    "automatic_production_deploy": false
+    "automatic_production_deploy": false,
+    "symbolic_node_names_grant_authority": false,
+    "unknown_state_may_be_invented": false,
+    "human_capability_over_dependency": true,
+    "environmental_constraints_are_first_class": true
   }
 }
