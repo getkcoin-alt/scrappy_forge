@@ -1,0 +1,49 @@
+{
+  "schema": "scrappy-platform.v1",
+  "protocol": "SYNCBOND",
+  "protocol_version": "5.0.0",
+  "primary_interface": "scrappy",
+  "components": [
+    {
+      "name": "scrappy-os",
+      "repository": "git@github.com:getkcoin-alt/-scrappy-os.git",
+      "ref": "architecture/syncbond-v5",
+      "sha": "ffcf0f9b211190f77bb73b11e11dfcb039a86ff1",
+      "role": "execution-control-plane",
+      "canonical_truth": ["machine-observations", "action-audit", "execution-results"]
+    },
+    {
+      "name": "vault-zeta",
+      "repository": "git@github.com:getkcoin-alt/itsmay.git",
+      "ref": "architecture/syncbond-v5",
+      "sha": "74240641ac55be5ed6be9d33ee5103600228b783",
+      "role": "identity-continuity-memory",
+      "canonical_truth": ["identity", "objectives", "durable-experiences", "promotion-history"]
+    },
+    {
+      "name": "scrappy-forge",
+      "repository": "git@github.com:getkcoin-alt/scrappy_forge.git",
+      "ref": "architecture/syncbond-v5",
+      "sha": "a29a3f97db7580a99e564c8742744696e18385f8",
+      "role": "terminal-operator-and-evolution-runtime",
+      "canonical_truth": ["workspace-state", "experiment-artifacts", "benchmark-evidence", "candidate-manifests"]
+    },
+    {
+      "name": "command-center",
+      "repository": "git@github.com:getkcoin-alt/karnveers-command-center.git",
+      "ref": "architecture/syncbond-v5",
+      "sha": "0523d6d5e021766d87e76f767d1293ab5728d56d",
+      "role": "human-governance-read-model",
+      "canonical_truth": []
+    }
+  ],
+  "invariants": {
+    "shared_runtime_required": false,
+    "shared_database_required": false,
+    "secrets_cross_component_transport": false,
+    "command_center_is_source_of_truth": false,
+    "forge_self_approval": false,
+    "automatic_main_merge": false,
+    "automatic_production_deploy": false
+  }
+}
