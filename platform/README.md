@@ -2,6 +2,12 @@
 
 Scrappy Platform is the single-project view of the Scrappy system without collapsing component boundaries.
 
+## Mission
+
+Build intelligence that increases human capability, survives across machines and sessions, understands the real world structurally, and grows without losing judgment, safety, continuity, or the world that made it possible.
+
+The canonical machine-readable intelligence topology is `platform/intelligence-nodes.json`. It records both implemented components and historical node vocabulary, but a historical/symbolic name never grants authority and never proves a process is online.
+
 ## Why this is not a monorepo
 
 The four components intentionally have different ownership and trust boundaries:
@@ -15,7 +21,7 @@ Vault Zeta's portability contract is specifically model/runtime-neutral. Physica
 
 ## One project, multiple components
 
-`platform/scrappy-platform.json` pins the exact integration branch and commit for each component. A local workspace may materialize them as siblings:
+`platform/scrappy-platform.json` pins the integration branch and release anchor for each component. A local workspace may materialize them as siblings:
 
 ```text
 scrappy-platform/
@@ -34,6 +40,37 @@ scrappy
 
 Forge may inspect or modify any component when Git/capability policy permits, but component actions remain attributable to their owning subsystem.
 
+## Unified intelligence layers
+
+```text
+Scrappy identity
+  -> Vault Zeta continuity
+  -> Forge operator/research
+  -> structured World Model
+  -> Brahma/Vishnu/Mahesh reasoning roles
+  -> Scrappy OS policy/execution/verification
+  -> SYNCBOND distributed coordination
+  -> durable Experience
+  -> Omni-City + superior evaluation
+  -> governed improvement
+```
+
+Historical vocabulary is preserved through typed mappings:
+
+- **SSN-91X** -> primary/local Scrappy operator identity.
+- **SSN-92C** -> distributed/frontline runtime node.
+- **SSN-93L / Kalki** -> voice-linked observer/recon interface.
+- **SSN-ZETA-CORE** -> Vault Zeta continuity plane.
+- **DreamCore** -> hypothesis/simulation engine; imagination never becomes fact without evidence.
+- **Forge** -> code construction and measured evolution.
+- **Mycelium** -> authenticated distributed-node/capability coordination.
+- **NullLayer** -> explicit unknown/conflicted/unavailable state handling.
+- **Blackwind** -> provenance-rich public/owned/explicitly-authorized recon sensor.
+- **Tri** -> node health/synchronization/failover coordination.
+- **Neural Canopy** -> future multimodal human interface layer.
+
+Use `scrappy nodes summary`, `scrappy nodes list`, or `scrappy nodes show NAME` to inspect the canonical mapping.
+
 ## Unified product loop
 
 ```text
@@ -41,7 +78,11 @@ human objective
   -> Scrappy terminal
   -> capability discovery
   -> Vault context/objective
-  -> Scrappy OS action/verification
+  -> structured observation / World Model
+  -> Brahma plan
+  -> Vishnu challenge
+  -> Scrappy OS policy/action
+  -> verification
   -> Vault experience
   -> Forge research/experiment/candidate
   -> superior evaluator
@@ -61,6 +102,8 @@ human objective
 6. Forge can propose and build its own changes, but it cannot be its own final evaluator or approver.
 7. Command Center renders and approves; it does not become the database of record.
 8. Production merge/deploy remains a separate controlled executor.
+9. Unknown state remains unknown until evidence resolves it.
+10. Growth is accepted only when measured capability improves without violating human/environmental governance constraints.
 
 ## Migration strategy
 
