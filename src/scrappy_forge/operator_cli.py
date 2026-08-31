@@ -1,8 +1,8 @@
 """Primary terminal surface for the persistent Scrappy operator.
 
 Normal prompts and existing commands delegate to the mature Forge CLI. Operator-
-level capability and evaluator commands are handled here so the product can grow
-without destabilizing the coding loop.
+level capability, evaluator and platform commands are handled here so the product
+can grow without destabilizing the coding loop.
 """
 
 from __future__ import annotations
@@ -14,6 +14,8 @@ from pathlib import Path
 from .capabilities import append_pending_request, broker_from_settings, unresolved_pending_requests
 from .config import Settings
 from .evaluator import EvaluatorReview, aggregate_reviews
+from .platform_workspace import materialize as materialize_platform
+from .platform_workspace import status as platform_status
 from .util import ForgeError, clean
 
 
@@ -80,6 +82,17 @@ def _evaluator(argv: list[str]) -> int:
     return 0
 
 
+def _platform(argv: list[str]) -> int:
+    if not argv or argv[0] == "status":
+        root = Path(argv[1]).expanduser().resolve() if len(argv) > 1 else None
+        print(json.dumps(platform_status(root), indent=2))
+        return 0
+    if argv[0] == "materialize" and len(argv) == 2:
+        print(json.dumps(materialize_platform(Path(argv[1])), indent=2))
+        return 0
+    raise ForgeError("Usage: scrappy platform status [ROOT] | materialize ROOT")
+
+
 def main() -> int:
     try:
         argv = sys.argv[1:]
@@ -87,6 +100,8 @@ def main() -> int:
             return _capability(argv[1:])
         if argv and argv[0] == "evaluator":
             return _evaluator(argv[1:])
+        if argv and argv[0] == "platform":
+            return _platform(argv[1:])
         from .cli import main as forge_main
 
         return forge_main()
