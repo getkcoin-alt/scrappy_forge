@@ -1,8 +1,8 @@
 """Primary terminal surface for the persistent Scrappy operator.
 
 Normal prompts and existing commands delegate to the mature Forge CLI. Operator-
-level capability, evaluator and platform commands are handled here so the product
-can grow without destabilizing the coding loop.
+level capability, evaluator, node and platform commands are handled here so the
+product can grow without destabilizing the coding loop.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from pathlib import Path
 from .capabilities import append_pending_request, broker_from_settings, unresolved_pending_requests
 from .config import Settings
 from .evaluator import EvaluatorReview, aggregate_reviews
+from .nodes import get_node, intelligence_summary, list_nodes
 from .platform_workspace import materialize as materialize_platform
 from .platform_workspace import status as platform_status
 from .util import ForgeError, clean
@@ -82,6 +83,31 @@ def _evaluator(argv: list[str]) -> int:
     return 0
 
 
+def _nodes(argv: list[str]) -> int:
+    if not argv or argv[0] == "summary":
+        print(json.dumps(intelligence_summary(), indent=2))
+        return 0
+    if argv[0] == "list":
+        status = None
+        owner = None
+        index = 1
+        while index < len(argv):
+            if argv[index] == "--status" and index + 1 < len(argv):
+                status = argv[index + 1]
+                index += 2
+            elif argv[index] == "--owner" and index + 1 < len(argv):
+                owner = argv[index + 1]
+                index += 2
+            else:
+                raise ForgeError(f"Unknown nodes option: {argv[index]}")
+        print(json.dumps({"nodes": list_nodes(status=status, owner=owner)}, indent=2))
+        return 0
+    if argv[0] == "show" and len(argv) == 2:
+        print(json.dumps(get_node(argv[1]), indent=2))
+        return 0
+    raise ForgeError("Usage: scrappy nodes summary | list [--status STATUS] [--owner COMPONENT] | show NAME")
+
+
 def _platform(argv: list[str]) -> int:
     if not argv or argv[0] == "status":
         root = Path(argv[1]).expanduser().resolve() if len(argv) > 1 else None
@@ -100,6 +126,8 @@ def main() -> int:
             return _capability(argv[1:])
         if argv and argv[0] == "evaluator":
             return _evaluator(argv[1:])
+        if argv and argv[0] == "nodes":
+            return _nodes(argv[1:])
         if argv and argv[0] == "platform":
             return _platform(argv[1:])
         from .cli import main as forge_main
