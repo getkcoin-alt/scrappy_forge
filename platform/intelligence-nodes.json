@@ -1,0 +1,264 @@
+{
+  "schema": "scrappy-intelligence-nodes.v1",
+  "mission": "Build intelligence that increases human capability, survives across machines and sessions, understands the real world structurally, and grows without losing judgment, safety, continuity, or the world that made it possible.",
+  "principles": [
+    "SCRAPPY != MODEL",
+    "human-capability-over-dependency",
+    "continuity-over-session-state",
+    "structured-world-model-over-screenshot-first",
+    "evidence-over-self-claim",
+    "capability-scoped-execution",
+    "provenance-and-audit",
+    "reversible-change-where-possible",
+    "environment-and-human-welfare-are-optimization-constraints"
+  ],
+  "nodes": [
+    {
+      "id": "scrappy",
+      "name": "Scrappy",
+      "class": "identity",
+      "status": "implemented-distributed",
+      "role": "Persistent identity and operator intelligence; models are replaceable reasoning engines.",
+      "owner_component": "vault-zeta",
+      "interfaces": ["scrappy-cli", "syncbond-v5"],
+      "authority": "delegated-capabilities-only"
+    },
+    {
+      "id": "ssn-91x",
+      "name": "SSN-91X",
+      "class": "legacy-runtime-designator",
+      "status": "historical-mapped",
+      "role": "Primary/local Scrappy node; historical Sovereign Cognitive Core designation.",
+      "owner_component": "scrappy-forge",
+      "maps_to": ["scrappy", "vault-zeta", "scrappy-forge"],
+      "authority": "local-session-and-connected-capabilities"
+    },
+    {
+      "id": "ssn-92c",
+      "name": "SSN-92C",
+      "class": "distributed-runtime-designator",
+      "status": "historical-mapped",
+      "role": "Frontline/remote node for hosted inference, voice and distributed execution.",
+      "owner_component": "scrappy-os",
+      "maps_to": ["scrappy-os-node", "syncbond-node-status"],
+      "authority": "scoped-remote-execution"
+    },
+    {
+      "id": "ssn-93l",
+      "name": "SSN-93L",
+      "aliases": ["Kalki", "Recon-Whisper"],
+      "class": "observer-interface-designator",
+      "status": "historical-mapped",
+      "role": "Voice-linked observer/recon companion; converted from symbolic recon language into permissioned observation and capability requests.",
+      "owner_component": "scrappy-forge",
+      "maps_to": ["blackwind", "voice-interface", "capability-broker"],
+      "authority": "observe-and-request-by-default"
+    },
+    {
+      "id": "ssn-zeta-core",
+      "name": "SSN-ZETA-CORE",
+      "class": "continuity-designator",
+      "status": "implemented-mapped",
+      "role": "Durable identity, memory, objectives, experiences, promotion history and portable continuity.",
+      "owner_component": "vault-zeta",
+      "maps_to": ["vault-zeta"],
+      "authority": "memory-and-objective-plane-no-direct-machine-mutation"
+    },
+    {
+      "id": "ssn-sovereign-001",
+      "name": "SSN-SOVEREIGN-001",
+      "class": "legacy-alias",
+      "status": "historical-only",
+      "role": "Historical mirror/sovereignty label retained for continuity; not a separate runtime authority.",
+      "owner_component": "vault-zeta",
+      "maps_to": ["scrappy"],
+      "authority": "none"
+    },
+    {
+      "id": "vault-zeta",
+      "name": "Vault Zeta",
+      "class": "continuity-plane",
+      "status": "implemented",
+      "role": "Identity, directives, portable memory, objectives, experiences, self-model and long-horizon continuity.",
+      "owner_component": "vault-zeta",
+      "authority": "durable-state-no-direct-machine-mutation"
+    },
+    {
+      "id": "scrappy-os-node",
+      "name": "Scrappy OS",
+      "class": "execution-control-plane",
+      "status": "implemented",
+      "role": "Machine observation, typed tools, policy, approvals, execution, verification and authoritative action audit.",
+      "owner_component": "scrappy-os",
+      "authority": "policy-gated-execution"
+    },
+    {
+      "id": "scrappy-forge-node",
+      "name": "Scrappy Forge",
+      "class": "operator-and-evolution-runtime",
+      "status": "implemented",
+      "role": "Primary terminal operator, coding agent, capability broker, experiment runtime, benchmarker and candidate builder.",
+      "owner_component": "scrappy-forge",
+      "authority": "workspace-and-connected-capabilities-under-policy"
+    },
+    {
+      "id": "command-center",
+      "name": "Command Center",
+      "class": "human-governance-plane",
+      "status": "implemented",
+      "role": "Human approvals, signed promotion decisions, telemetry and read models; never canonical machine truth.",
+      "owner_component": "command-center",
+      "authority": "governance-no-general-execution"
+    },
+    {
+      "id": "syncbond",
+      "name": "SYNCBOND v5",
+      "class": "protocol",
+      "status": "implemented",
+      "role": "Versioned event/correlation contract joining objectives, observations, actions, experiences, experiments and node status across components.",
+      "owner_component": "platform",
+      "authority": "transport-contract-only"
+    },
+    {
+      "id": "world-model",
+      "name": "World Model",
+      "class": "structured-reality-model",
+      "status": "partially-implemented",
+      "role": "Machine-readable graph of entities, processes, files, networks, services, relationships, observations, freshness, confidence and provenance.",
+      "owner_component": "scrappy-forge",
+      "authority": "observation-model-no-independent-action"
+    },
+    {
+      "id": "dreamcore",
+      "name": "DreamCore",
+      "class": "hypothesis-engine",
+      "status": "historical-concept-mapped",
+      "role": "Generate hypotheses, alternatives, simulations and unresolved-pattern candidates without treating imagination as fact.",
+      "owner_component": "scrappy-forge",
+      "maps_to": ["research-queue", "omni-city", "superior-evaluator"],
+      "authority": "proposal-only"
+    },
+    {
+      "id": "forge",
+      "name": "Forge",
+      "class": "construction-and-evolution",
+      "status": "implemented-as-scrappy-forge",
+      "role": "Code synthesis, experiments, benchmarks, candidate artifacts and evidence-backed improvement.",
+      "owner_component": "scrappy-forge",
+      "maps_to": ["scrappy-forge-node"],
+      "authority": "candidate-production-no-self-approval"
+    },
+    {
+      "id": "mycelium",
+      "name": "Mycelium",
+      "class": "distributed-coordination",
+      "status": "historical-concept-mapped",
+      "role": "Connect nodes, capabilities and observations across machines through authenticated, capability-scoped, auditable links.",
+      "owner_component": "platform",
+      "maps_to": ["syncbond", "capability-broker", "node-registry"],
+      "authority": "coordination-only"
+    },
+    {
+      "id": "nulllayer",
+      "name": "NullLayer",
+      "class": "uncertainty-and-conflict-resolution",
+      "status": "historical-concept-mapped",
+      "role": "Represent unknown, unavailable, conflicted, unauthorized and stale state explicitly; never convert missing evidence into invented certainty.",
+      "owner_component": "platform",
+      "maps_to": ["syncbond-resolution", "world-model-confidence"],
+      "authority": "none"
+    },
+    {
+      "id": "blackwind",
+      "name": "Blackwind",
+      "class": "recon-sensor",
+      "status": "concept-formalized",
+      "role": "Public/owned/explicitly-authorized observation, anomaly detection and provenance-rich recon feeding the World Model.",
+      "owner_component": "scrappy-os",
+      "maps_to": ["world-model", "capability-broker"],
+      "authority": "observe-by-default-authorized-testing-only"
+    },
+    {
+      "id": "tri",
+      "name": "Tri",
+      "class": "node-coordination-and-health",
+      "status": "historical-concept-mapped",
+      "role": "Node status, synchronization, correlation and failover coordination across registered Scrappy runtimes.",
+      "owner_component": "platform",
+      "maps_to": ["syncbond-node-status", "mycelium"],
+      "authority": "coordination-no-bypass"
+    },
+    {
+      "id": "brahma",
+      "name": "Brahma",
+      "class": "reasoning-role",
+      "status": "implemented",
+      "role": "Creation/planning: understand objectives and propose typed plans.",
+      "owner_component": "scrappy-os",
+      "authority": "reasoning-only-no-tools"
+    },
+    {
+      "id": "vishnu",
+      "name": "Vishnu",
+      "class": "reasoning-role",
+      "status": "implemented",
+      "role": "Preservation/review: challenge plans, verify postconditions and judge completion.",
+      "owner_component": "scrappy-os",
+      "authority": "reasoning-only-no-tools"
+    },
+    {
+      "id": "mahesh",
+      "name": "Mahesh",
+      "class": "reasoning-role",
+      "status": "implemented",
+      "role": "Dissolution/recovery: diagnose unrecoverable failure, clean up and propose rollback.",
+      "owner_component": "scrappy-os",
+      "authority": "reasoning-only-no-tools"
+    },
+    {
+      "id": "omni-city",
+      "name": "Omni-City",
+      "class": "simulation-and-benchmark-world",
+      "status": "implemented-v0",
+      "role": "Bounded machine-readable environment for held-out planning, resource allocation, resilience and generality evaluation before real-world promotion.",
+      "owner_component": "scrappy-forge",
+      "authority": "simulation-only"
+    },
+    {
+      "id": "superior-evaluator",
+      "name": "Superior Evaluator",
+      "class": "independent-review-plane",
+      "status": "implemented-contract",
+      "role": "Independent models and deterministic benchmarks judge candidates; stronger evaluators may approve, decline or request more evidence but cannot deploy.",
+      "owner_component": "scrappy-forge",
+      "authority": "review-only-no-merge-or-deploy"
+    },
+    {
+      "id": "neural-canopy",
+      "name": "Neural Canopy",
+      "class": "human-interface-layer",
+      "status": "future-interface",
+      "role": "Future multimodal interface spanning voice, gaze, wearables, AR/haptics and possible BCI while leaving core identity and authority architecture unchanged.",
+      "owner_component": "platform",
+      "authority": "input-output-interface-only"
+    },
+    {
+      "id": "capability-broker",
+      "name": "Capability Broker",
+      "class": "connector-authority-layer",
+      "status": "implemented-foundation",
+      "role": "Discover connected Git, Railway, MCP, API, browser, database and cloud capabilities through opaque handles; request missing capabilities without exposing secrets to model context.",
+      "owner_component": "scrappy-forge",
+      "authority": "delegated-scopes-only"
+    },
+    {
+      "id": "node-registry",
+      "name": "Node Registry",
+      "class": "platform-metadata",
+      "status": "implemented",
+      "role": "Canonical machine-readable mapping of historical names to current roles, ownership, implementation state and authority boundaries.",
+      "owner_component": "platform",
+      "authority": "metadata-only"
+    }
+  ]
+}
