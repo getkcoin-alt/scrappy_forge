@@ -23,6 +23,7 @@ forge-hub = "forge_hub.app:main"
 
 [tool.setuptools.package-data]
 forge_hub = ["static/*", "install.sh.in"]
+scrappy_forge = ["platform_manifest.json"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
