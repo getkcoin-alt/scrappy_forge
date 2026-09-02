@@ -1,0 +1,16 @@
+{
+  "schema": "scrappy-intelligence-node-overlay.v1",
+  "component": "power",
+  "nodes": [
+    {
+      "id": "power",
+      "name": "Power",
+      "class": "resource-intelligence-plane",
+      "status": "implemented-v0.1",
+      "role": "Canonical resource ledger, budgets and depletion forecasts for compute, energy, money, tokens, API quota, time, bandwidth, storage, battery and environmental-resource evidence.",
+      "owner_component": "power",
+      "interfaces": ["resource-observations", "budget-assessments", "world-model-evidence"],
+      "authority": "evidence-only-no-execution"
+    }
+  ]
+}
