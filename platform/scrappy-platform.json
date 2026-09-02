@@ -5,6 +5,7 @@
   "primary_interface": "scrappy",
   "mission": "Build intelligence that increases human capability, survives across machines and sessions, understands the real world structurally, and grows without losing judgment, safety, continuity, or the world that made it possible.",
   "intelligence_registry": "intelligence-nodes.json",
+  "intelligence_overlays": ["intelligence-nodes.power.json"],
   "components": [
     {
       "name": "scrappy-os",
@@ -39,6 +40,16 @@
       "canonical_truth": []
     }
   ],
+  "extensions": [
+    {
+      "name": "power",
+      "repository": "git@github.com:getkcoin-alt/power.git",
+      "ref": "architecture/resource-intelligence-v1",
+      "sha": "6c021c096c5f3ce05e7dde54560fb4db84584e1b",
+      "role": "resource-intelligence-plane",
+      "canonical_truth": ["resource-observations", "resource-budgets", "resource-assessments", "depletion-forecasts"]
+    }
+  ],
   "invariants": {
     "shared_runtime_required": false,
     "shared_database_required": false,
@@ -50,6 +61,7 @@
     "symbolic_node_names_grant_authority": false,
     "unknown_state_may_be_invented": false,
     "human_capability_over_dependency": true,
-    "environmental_constraints_are_first_class": true
+    "environmental_constraints_are_first_class": true,
+    "resource_evidence_can_directly_execute": false
   }
 }
