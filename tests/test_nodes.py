@@ -9,7 +9,7 @@ from scrappy_forge.nodes import get_node, intelligence_summary, list_nodes, load
 from scrappy_forge.util import ForgeError
 
 
-def test_registry_contains_historical_and_current_nodes():
+def test_registry_contains_historical_current_and_extension_nodes():
     registry = load_registry()
     ids = {node["id"] for node in registry["nodes"]}
     assert {
@@ -37,7 +37,15 @@ def test_registry_contains_historical_and_current_nodes():
         "superior-evaluator",
         "neural-canopy",
         "capability-broker",
+        "power",
     } <= ids
+
+
+def test_power_is_resource_evidence_not_execution_authority():
+    node = get_node("power")
+    assert node["class"] == "resource-intelligence-plane"
+    assert node["owner_component"] == "power"
+    assert node["authority"] == "evidence-only-no-execution"
 
 
 def test_historical_aliases_do_not_gain_authority():
@@ -69,8 +77,10 @@ def test_filters_and_summary_are_deterministic():
     vault = list_nodes(owner="vault-zeta")
     assert vault
     assert all(node["owner_component"] == "vault-zeta" for node in vault)
+    power = list_nodes(owner="power")
+    assert [node["id"] for node in power] == ["power"]
     summary = intelligence_summary()
-    assert summary["node_count"] >= 24
+    assert summary["node_count"] >= 25
     assert summary["mission"].startswith("Build intelligence that increases human capability")
 
 
