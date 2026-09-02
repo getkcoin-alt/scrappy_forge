@@ -17,11 +17,13 @@ dev = ["pytest>=8,<10", "pytest-asyncio>=0.24,<2", "ruff>=0.12,<1", "httpx2==2.1
 
 [project.scripts]
 forge = "scrappy_forge.cli:main"
+scrappy = "scrappy_forge.operator_cli:main"
 scrappy-forge = "scrappy_forge.cli:main"
 forge-hub = "forge_hub.app:main"
 
 [tool.setuptools.package-data]
 forge_hub = ["static/*", "install.sh.in"]
+scrappy_forge = ["platform_manifest.json"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
