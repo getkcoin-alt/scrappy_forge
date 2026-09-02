@@ -3,6 +3,9 @@
 Historical names are retained as lineage metadata, but runtime code consumes
 only typed roles, ownership, status and authority. A symbolic name never grants
 permissions and never proves that a process is online.
+
+Component overlays let bounded platform extensions register additional nodes
+without rewriting the core registry. Duplicate ids still fail closed.
 """
 
 from __future__ import annotations
@@ -13,24 +16,24 @@ from pathlib import Path
 from .util import ForgeError
 
 SCHEMA = "scrappy-intelligence-nodes.v1"
+OVERLAY_SCHEMA = "scrappy-intelligence-node-overlay.v1"
 
 
 def registry_path() -> Path:
     return Path(__file__).resolve().parents[2] / "platform" / "intelligence-nodes.json"
 
 
-def load_registry(path: Path | None = None) -> dict:
-    target = (path or registry_path()).resolve()
+def _read_json(path: Path) -> dict:
     try:
-        value = json.loads(target.read_text(encoding="utf-8"))
+        value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise ForgeError(f"Cannot load node registry: {target}") from exc
-    if not isinstance(value, dict) or value.get("schema") != SCHEMA:
-        raise ForgeError("Unsupported Scrappy node registry schema")
-    nodes = value.get("nodes")
-    if not isinstance(nodes, list) or not nodes:
-        raise ForgeError("Node registry must contain nodes[]")
-    seen: set[str] = set()
+        raise ForgeError(f"Cannot load node registry: {path}") from exc
+    if not isinstance(value, dict):
+        raise ForgeError(f"Node registry document must be an object: {path}")
+    return value
+
+
+def _validate_nodes(nodes: list, *, seen: set[str]) -> None:
     for node in nodes:
         if not isinstance(node, dict):
             raise ForgeError("Node registry entries must be objects")
@@ -43,7 +46,35 @@ def load_registry(path: Path | None = None) -> dict:
         for required in ("name", "class", "status", "role", "owner_component", "authority"):
             if not isinstance(node.get(required), str) or not node[required].strip():
                 raise ForgeError(f"Node {node_id} requires {required}")
-    return value
+
+
+def load_registry(path: Path | None = None) -> dict:
+    target = (path or registry_path()).resolve()
+    value = _read_json(target)
+    if value.get("schema") != SCHEMA:
+        raise ForgeError("Unsupported Scrappy node registry schema")
+    nodes = value.get("nodes")
+    if not isinstance(nodes, list) or not nodes:
+        raise ForgeError("Node registry must contain nodes[]")
+
+    merged = [dict(node) if isinstance(node, dict) else node for node in nodes]
+    seen: set[str] = set()
+    _validate_nodes(merged, seen=seen)
+
+    # Only the canonical registry auto-loads component overlays. Tests and
+    # callers supplying an explicit registry path remain deterministic.
+    if path is None:
+        for overlay_path in sorted(target.parent.glob("intelligence-nodes.*.json")):
+            overlay = _read_json(overlay_path)
+            if overlay.get("schema") != OVERLAY_SCHEMA:
+                raise ForgeError(f"Unsupported node overlay schema: {overlay_path.name}")
+            overlay_nodes = overlay.get("nodes")
+            if not isinstance(overlay_nodes, list) or not overlay_nodes:
+                raise ForgeError(f"Node overlay must contain nodes[]: {overlay_path.name}")
+            _validate_nodes(overlay_nodes, seen=seen)
+            merged.extend(dict(node) for node in overlay_nodes)
+
+    return {**value, "nodes": merged}
 
 
 def list_nodes(*, status: str | None = None, owner: str | None = None) -> list[dict]:
@@ -84,4 +115,11 @@ def intelligence_summary() -> dict:
     }
 
 
-__all__ = ["SCHEMA", "get_node", "intelligence_summary", "list_nodes", "load_registry"]
+__all__ = [
+    "OVERLAY_SCHEMA",
+    "SCHEMA",
+    "get_node",
+    "intelligence_summary",
+    "list_nodes",
+    "load_registry",
+]
