@@ -122,6 +122,19 @@ class VaultMemory:
     def _rrf(ranks: dict[int, int], k: int = 60) -> dict[int, float]:
         return {mid: 1.0 / (k + rank) for mid, rank in ranks.items()}
 
+    @staticmethod
+    def query_fingerprint(query: MemoryQuery) -> str:
+        return sha(
+            "|".join(
+                [
+                    query.text.strip().lower(),
+                    repr(sorted((query.scope or {}).items())),
+                    repr(sorted(query.entity_keys)),
+                    repr(sorted(value.value for value in query.memory_classes)),
+                ]
+            )
+        )
+
     def search(self, query: MemoryQuery) -> list[MemoryHit]:
         if not query.text.strip() and not query.entity_keys:
             raise ForgeError("Memory query requires text or entity keys")
@@ -199,6 +212,26 @@ class VaultMemory:
 
         hits.sort(key=lambda hit: (-hit.score, -hit.item["created_at"], hit.item["id"]))
         return hits[: query.limit]
+
+    def record_feedback(
+        self,
+        query: MemoryQuery,
+        memory_id: int,
+        *,
+        useful: bool,
+        decision: str | None = None,
+    ) -> dict:
+        feedback_id = self.store.memory_feedback_add(
+            self.project,
+            memory_id,
+            self.query_fingerprint(query),
+            useful,
+            decision,
+        )
+        return {"id": feedback_id, **self.store.memory_feedback_summary(self.project, memory_id)}
+
+    def feedback_summary(self, memory_id: int) -> dict:
+        return self.store.memory_feedback_summary(self.project, memory_id)
 
     def reconcile_source(self, source: str) -> list[int]:
         """Downgrade source-derived memories when their source fingerprint changes."""
