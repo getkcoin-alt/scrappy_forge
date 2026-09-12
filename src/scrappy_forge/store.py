@@ -67,6 +67,17 @@ class Store:
               INSERT INTO memory_items_fts(memory_items_fts,rowid,content) VALUES('delete',old.id,old.content);
               INSERT INTO memory_items_fts(rowid,content) VALUES(new.id,new.content);
             END;
+            CREATE TABLE IF NOT EXISTS memory_retrieval_feedback(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              project TEXT NOT NULL,
+              memory_id INTEGER NOT NULL,
+              query_fingerprint TEXT NOT NULL,
+              useful INTEGER NOT NULL CHECK(useful IN (0,1)),
+              decision TEXT,
+              at REAL NOT NULL,
+              FOREIGN KEY(memory_id) REFERENCES memory_items(id)
+            );
+            CREATE INDEX IF NOT EXISTS memory_feedback_item ON memory_retrieval_feedback(project,memory_id);
         """)
 
     def close(self):
@@ -265,3 +276,39 @@ class Store:
             (project, source),
         )
         return [self._decode_memory_row(row) for row in rows]
+
+    def memory_feedback_add(
+        self,
+        project: str,
+        memory_id: int,
+        query_fingerprint: str,
+        useful: bool,
+        decision: str | None = None,
+    ) -> int:
+        exists = self.db.execute(
+            "SELECT 1 FROM memory_items WHERE project=? AND id=?", (project, memory_id)
+        ).fetchone()
+        if not exists:
+            raise ForgeError("Memory item not found for retrieval feedback")
+        cur = self.db.execute(
+            "INSERT INTO memory_retrieval_feedback(project,memory_id,query_fingerprint,useful,decision,at) VALUES(?,?,?,?,?,?)",
+            (project, memory_id, query_fingerprint, int(bool(useful)), decision[:500] if decision else None, time.time()),
+        )
+        return int(cur.lastrowid)
+
+    def memory_feedback_summary(self, project: str, memory_id: int) -> dict:
+        row = self.db.execute(
+            """
+            SELECT COUNT(*) AS observations, COALESCE(SUM(useful),0) AS useful
+            FROM memory_retrieval_feedback
+            WHERE project=? AND memory_id=?
+            """,
+            (project, memory_id),
+        ).fetchone()
+        observations = int(row["observations"])
+        useful = int(row["useful"])
+        return {
+            "observations": observations,
+            "useful": useful,
+            "usefulness_rate": useful / observations if observations else None,
+        }
