@@ -36,7 +36,8 @@ class ReasoningPolicy:
         complexity = min(max(complexity, 0.0), 1.0)
         uncertainty = min(max(uncertainty, 0.0), 1.0)
         remaining_budget_ratio = min(max(remaining_budget_ratio, 0.0), 1.0)
-        failure_pressure = min(max(verification_failures, 0) / 3, 1.0)
+        verification_failures = max(verification_failures, 0)
+        failure_pressure = min(verification_failures / 3, 1.0)
         budget_pressure = 1.0 - remaining_budget_ratio
 
         score = 0.48 * complexity + 0.28 * uncertainty + 0.18 * failure_pressure
@@ -65,4 +66,24 @@ class ReasoningPolicy:
             level = ReasoningLevel.LOW
         else:
             level = ReasoningLevel.MEDIUM
+
+        # Verification failures are direct evidence that the current reasoning depth was
+        # insufficient. Escalate deterministically instead of relying only on the blended score.
+        order = [
+            ReasoningLevel.LOW,
+            ReasoningLevel.MEDIUM,
+            ReasoningLevel.HIGH,
+            ReasoningLevel.EXTRA_HIGH,
+        ]
+        if verification_failures >= 3:
+            floor = ReasoningLevel.HIGH
+        elif verification_failures >= 1:
+            floor = ReasoningLevel.MEDIUM
+        else:
+            floor = ReasoningLevel.LOW
+        if order.index(level) < order.index(floor):
+            level = floor
+        elif verification_failures >= 2 and level == ReasoningLevel.MEDIUM:
+            level = ReasoningLevel.HIGH
+
         return ReasoningDecision(level=level, score=score, reasons=tuple(reasons))
