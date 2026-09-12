@@ -75,12 +75,9 @@ class MissionController:
                     error="controller restarted while external operation was running; reconcile before retry",
                 )
             else:
-                self.graph.transition(
-                    node.id,
-                    NodeState.FAILED,
-                    error="controller restarted while operation was running",
-                )
-                self.graph.transition(node.id, NodeState.READY)
+                message = "controller restarted while operation was running"
+                self.graph.transition(node.id, NodeState.FAILED, error=message)
+                self.graph.transition(node.id, NodeState.READY, error=message)
 
     def descendants(self, node_ids) -> set[str]:
         affected = set(node_ids)
