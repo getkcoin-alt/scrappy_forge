@@ -44,20 +44,29 @@ def test_hybrid_retrieval_uses_lexical_embedding_entity_scope_and_provenance(sto
         confidence=1.0,
     )
 
-    hits = memory.search(
-        MemoryQuery(
-            text="auth request timeout retry",
-            entity_keys=("service:auth",),
-            scope={"component": "auth"},
-            limit=2,
-        )
+    query = MemoryQuery(
+        text="auth request timeout retry",
+        entity_keys=("service:auth",),
+        scope={"component": "auth"},
+        limit=2,
     )
+    hits = memory.search(query)
     assert hits[0].item["memory_class"] == "procedural"
     assert hits[0].item["provenance"] == {"source": "incident-17"}
     assert "lexical" in hits[0].channels
     assert "embedding" in hits[0].channels
     assert "entity" in hits[0].channels
     assert "scope" in hits[0].channels
+
+    feedback = memory.record_feedback(
+        query,
+        hits[0].item["id"],
+        useful=True,
+        decision="selected for retry decision context",
+    )
+    assert feedback["observations"] == 1
+    assert feedback["useful"] == 1
+    assert feedback["usefulness_rate"] == 1.0
 
 
 def test_changed_source_is_excluded_and_can_be_invalidated(store, repo):
