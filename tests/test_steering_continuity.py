@@ -1,5 +1,3 @@
-import asyncio
-
 import pytest
 
 from scrappy_forge.continuity import MissionStore
