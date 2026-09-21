@@ -292,7 +292,14 @@ class Store:
             raise ForgeError("Memory item not found for retrieval feedback")
         cur = self.db.execute(
             "INSERT INTO memory_retrieval_feedback(project,memory_id,query_fingerprint,useful,decision,at) VALUES(?,?,?,?,?,?)",
-            (project, memory_id, query_fingerprint, int(bool(useful)), decision[:500] if decision else None, time.time()),
+            (
+                project,
+                memory_id,
+                query_fingerprint,
+                int(bool(useful)),
+                decision[:500] if decision else None,
+                time.time(),
+            ),
         )
         return int(cur.lastrowid)
 
