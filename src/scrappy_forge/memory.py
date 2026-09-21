@@ -29,9 +29,7 @@ class Memory:
         seen = set()
 
         if query.strip():
-            for hit in self.vault.search(
-                MemoryQuery(text=query, limit=8, include_stale=include_stale)
-            ):
+            for hit in self.vault.search(MemoryQuery(text=query, limit=8, include_stale=include_stale)):
                 row = dict(hit.item)
                 row["retrieval_score"] = hit.score
                 row["retrieval_channels"] = list(hit.channels)
