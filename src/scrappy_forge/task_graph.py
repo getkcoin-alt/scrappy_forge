@@ -131,7 +131,9 @@ class TaskGraph:
             if node.state != NodeState.QUEUED:
                 continue
             deps = [self.nodes[dep] for dep in node.dependencies]
-            if any(dep.state in {NodeState.FAILED, NodeState.CANCELLED, NodeState.SUPERSEDED} for dep in deps):
+            if any(
+                dep.state in {NodeState.FAILED, NodeState.CANCELLED, NodeState.SUPERSEDED} for dep in deps
+            ):
                 node.state = NodeState.BLOCKED
             elif all(dep.state == NodeState.VERIFIED for dep in deps):
                 node.state = NodeState.READY
@@ -144,7 +146,12 @@ class TaskGraph:
         node = self.nodes[node_id]
         allowed = {
             NodeState.QUEUED: {NodeState.READY, NodeState.BLOCKED, NodeState.CANCELLED, NodeState.SUPERSEDED},
-            NodeState.READY: {NodeState.RUNNING, NodeState.CANCELLED, NodeState.SUPERSEDED, NodeState.BLOCKED},
+            NodeState.READY: {
+                NodeState.RUNNING,
+                NodeState.CANCELLED,
+                NodeState.SUPERSEDED,
+                NodeState.BLOCKED,
+            },
             NodeState.RUNNING: {
                 NodeState.AWAITING_INPUT,
                 NodeState.BLOCKED,
@@ -174,7 +181,11 @@ class TaskGraph:
         if node.state not in TERMINAL_STATES:
             self.transition(node_id, NodeState.CANCELLED)
         for candidate in self.nodes.values():
-            if node_id in candidate.dependencies and candidate.state in {NodeState.QUEUED, NodeState.READY, NodeState.BLOCKED}:
+            if node_id in candidate.dependencies and candidate.state in {
+                NodeState.QUEUED,
+                NodeState.READY,
+                NodeState.BLOCKED,
+            }:
                 candidate.state = NodeState.BLOCKED
 
     def supersede(self, node_id: str, replacement: TaskNode) -> None:
