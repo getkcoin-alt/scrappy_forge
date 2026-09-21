@@ -68,13 +68,10 @@ class Scheduler:
             raise
         except Exception as exc:  # executor is a controller boundary; normalize failures here
             message = str(exc)[:1000]
-            uncertain_external = (
-                node.side_effect == SideEffectClass.EXTERNAL
-                and node.idempotency in {
-                    IdempotencyClass.RECONCILE_BEFORE_RETRY,
-                    IdempotencyClass.NON_IDEMPOTENT,
-                }
-            )
+            uncertain_external = node.side_effect == SideEffectClass.EXTERNAL and node.idempotency in {
+                IdempotencyClass.RECONCILE_BEFORE_RETRY,
+                IdempotencyClass.NON_IDEMPOTENT,
+            }
             if uncertain_external:
                 self.graph.transition(node.id, NodeState.UNCERTAIN, error=message)
                 return
