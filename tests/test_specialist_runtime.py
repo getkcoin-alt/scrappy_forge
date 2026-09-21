@@ -47,7 +47,12 @@ async def test_specialist_returns_proposal_not_execution():
     router = ModelRouter([capability()])
 
     def invoke(req, route, turn):
-        return AgentProposal(req.role, req.task_id, "patch proposal", operations=({"tool": "edit", "args": {}},))
+        return AgentProposal(
+            req.role,
+            req.task_id,
+            "patch proposal",
+            operations=({"tool": "edit", "args": {}},),
+        )
 
     result = await SpecialistRuntime(router, invoke).run(request())
     assert result.proposal.operations[0]["tool"] == "edit"
@@ -63,7 +68,7 @@ async def test_role_and_task_identity_are_enforced():
         return AgentProposal(SpecialistRole.PLANNER, "other-task", "wrong identity")
 
     with pytest.raises(ForgeError):
-        await SpecialistRuntime(router, invoke).run(request( budget=AgentBudget(max_turns=1)))
+        await SpecialistRuntime(router, invoke).run(request(budget=AgentBudget(max_turns=1)))
 
 
 @pytest.mark.asyncio
@@ -118,6 +123,12 @@ async def test_journal_contains_metadata_not_hidden_reasoning():
     def invoke(req, route, turn):
         return AgentProposal(req.role, req.task_id, "bounded result")
 
-    await SpecialistRuntime(router, invoke, journal=lambda kind, payload: events.append((kind, payload))).run(request())
+    await SpecialistRuntime(
+        router,
+        invoke,
+        journal=lambda kind, payload: events.append((kind, payload)),
+    ).run(request())
     assert [kind for kind, _ in events] == ["specialist_started", "specialist_finished"]
-    assert all("reasoning" not in payload and "chain_of_thought" not in payload for _, payload in events)
+    assert all(
+        "reasoning" not in payload and "chain_of_thought" not in payload for _, payload in events
+    )
