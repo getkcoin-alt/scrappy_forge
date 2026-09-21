@@ -10,7 +10,7 @@ from .util import ForgeError, encoded, redact, sha
 
 
 class Store:
-    """Local, project-scoped SQLite state, audit journal and FTS5 memory."""
+    """Local, project-scoped SQLite state, audit journal and memory indexes."""
 
     def __init__(self, home: Path):
         self.home = home.resolve()
@@ -23,12 +23,61 @@ class Store:
             CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY, project TEXT, state TEXT, updated REAL);
             CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY AUTOINCREMENT, session TEXT, kind TEXT, data TEXT, at REAL);
             CREATE INDEX IF NOT EXISTS events_session ON events(session,id);
+
+            -- Legacy notes remain readable for compatibility. New writes use memory_items.
             CREATE TABLE IF NOT EXISTS memory(id INTEGER PRIMARY KEY, project TEXT, note TEXT, source TEXT, source_hash TEXT, origin TEXT, at REAL);
             CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(note, content='memory', content_rowid='id');
             CREATE TRIGGER IF NOT EXISTS memory_insert AFTER INSERT ON memory BEGIN
               INSERT INTO memory_fts(rowid,note) VALUES(new.id,new.note); END;
             CREATE TRIGGER IF NOT EXISTS memory_delete AFTER DELETE ON memory BEGIN
               INSERT INTO memory_fts(memory_fts,rowid,note) VALUES('delete',old.id,old.note); END;
+
+            CREATE TABLE IF NOT EXISTS memory_items(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              project TEXT NOT NULL,
+              memory_class TEXT NOT NULL,
+              content TEXT NOT NULL,
+              provenance TEXT NOT NULL,
+              scope TEXT NOT NULL,
+              confidence REAL NOT NULL,
+              source TEXT,
+              source_fingerprint TEXT,
+              entity_keys TEXT NOT NULL,
+              embedding TEXT,
+              origin TEXT NOT NULL,
+              created_at REAL NOT NULL,
+              updated_at REAL NOT NULL,
+              invalidated_at REAL,
+              invalidation_reason TEXT
+            );
+            CREATE INDEX IF NOT EXISTS memory_items_project ON memory_items(project,id);
+            CREATE INDEX IF NOT EXISTS memory_items_source ON memory_items(project,source);
+            CREATE VIRTUAL TABLE IF NOT EXISTS memory_items_fts USING fts5(
+              content,
+              content='memory_items',
+              content_rowid='id'
+            );
+            CREATE TRIGGER IF NOT EXISTS memory_items_insert AFTER INSERT ON memory_items BEGIN
+              INSERT INTO memory_items_fts(rowid,content) VALUES(new.id,new.content);
+            END;
+            CREATE TRIGGER IF NOT EXISTS memory_items_delete AFTER DELETE ON memory_items BEGIN
+              INSERT INTO memory_items_fts(memory_items_fts,rowid,content) VALUES('delete',old.id,old.content);
+            END;
+            CREATE TRIGGER IF NOT EXISTS memory_items_update AFTER UPDATE OF content ON memory_items BEGIN
+              INSERT INTO memory_items_fts(memory_items_fts,rowid,content) VALUES('delete',old.id,old.content);
+              INSERT INTO memory_items_fts(rowid,content) VALUES(new.id,new.content);
+            END;
+            CREATE TABLE IF NOT EXISTS memory_retrieval_feedback(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              project TEXT NOT NULL,
+              memory_id INTEGER NOT NULL,
+              query_fingerprint TEXT NOT NULL,
+              useful INTEGER NOT NULL CHECK(useful IN (0,1)),
+              decision TEXT,
+              at REAL NOT NULL,
+              FOREIGN KEY(memory_id) REFERENCES memory_items(id)
+            );
+            CREATE INDEX IF NOT EXISTS memory_feedback_item ON memory_retrieval_feedback(project,memory_id);
         """)
 
     def close(self):
@@ -95,6 +144,7 @@ class Store:
         text = p.read_text()
         return {"text": text[offset : offset + min(size, 6000)], "total_chars": len(text), "offset": offset}
 
+    # Legacy memory API -------------------------------------------------
     def remember(
         self, project: str, note: str, source: str | None, source_hash: str | None, origin: str
     ) -> int:
@@ -124,3 +174,148 @@ class Store:
 
     def forget(self, project: str, mid: int):
         self.db.execute("DELETE FROM memory WHERE project=? AND id=?", (project, mid))
+
+    # Vault Zeta typed memory API --------------------------------------
+    def memory_item_add(
+        self,
+        *,
+        project: str,
+        memory_class: str,
+        content: str,
+        provenance: dict,
+        scope: dict,
+        confidence: float,
+        source: str | None,
+        source_fingerprint: str | None,
+        entity_keys: list[str],
+        embedding: list[float] | None,
+        origin: str,
+    ) -> int:
+        if not content.strip() or len(content) > 8000:
+            raise ForgeError("Memory content must contain 1-8000 characters")
+        if not 0 <= confidence <= 1:
+            raise ForgeError("Memory confidence must be between 0 and 1")
+        now = time.time()
+        cur = self.db.execute(
+            """
+            INSERT INTO memory_items(
+              project,memory_class,content,provenance,scope,confidence,source,
+              source_fingerprint,entity_keys,embedding,origin,created_at,updated_at
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """,
+            (
+                project,
+                memory_class,
+                redact(content),
+                encoded(redact(provenance)),
+                encoded(scope),
+                confidence,
+                source,
+                source_fingerprint,
+                encoded(sorted(set(entity_keys))),
+                encoded(embedding) if embedding is not None else None,
+                origin,
+                now,
+                now,
+            ),
+        )
+        return int(cur.lastrowid)
+
+    @staticmethod
+    def _decode_memory_row(row: sqlite3.Row | dict) -> dict:
+        value = dict(row)
+        for key in ("provenance", "scope", "entity_keys", "embedding"):
+            if value.get(key) is not None and isinstance(value[key], str):
+                value[key] = json.loads(value[key])
+        return value
+
+    def memory_item_get(self, project: str, mid: int) -> dict | None:
+        row = self.db.execute(
+            "SELECT * FROM memory_items WHERE project=? AND id=?", (project, mid)
+        ).fetchone()
+        return self._decode_memory_row(row) if row else None
+
+    def memory_items_recent(self, project: str, limit: int = 64):
+        rows = self.db.execute(
+            "SELECT * FROM memory_items WHERE project=? ORDER BY created_at DESC LIMIT ?",
+            (project, min(max(limit, 1), 512)),
+        )
+        return [self._decode_memory_row(row) for row in rows]
+
+    def memory_items_fts(self, project: str, query: str, limit: int = 64):
+        import re
+
+        words = re.findall(r"\w+", query)[:20]
+        if not words:
+            return self.memory_items_recent(project, limit)
+        expr = " OR ".join('"' + word.replace('"', "") + '"' for word in words)
+        rows = self.db.execute(
+            """
+            SELECT m.*, bm25(memory_items_fts) AS lexical_rank
+            FROM memory_items m
+            JOIN memory_items_fts f ON m.id=f.rowid
+            WHERE m.project=? AND memory_items_fts MATCH ?
+            ORDER BY lexical_rank
+            LIMIT ?
+            """,
+            (project, expr, min(max(limit, 1), 512)),
+        )
+        return [self._decode_memory_row(row) for row in rows]
+
+    def memory_item_invalidate(self, project: str, mid: int, reason: str) -> None:
+        if not reason.strip():
+            raise ForgeError("Memory invalidation requires a reason")
+        self.db.execute(
+            "UPDATE memory_items SET invalidated_at=?, invalidation_reason=?, updated_at=? WHERE project=? AND id=?",
+            (time.time(), reason[:500], time.time(), project, mid),
+        )
+
+    def memory_items_for_source(self, project: str, source: str):
+        rows = self.db.execute(
+            "SELECT * FROM memory_items WHERE project=? AND source=? ORDER BY id",
+            (project, source),
+        )
+        return [self._decode_memory_row(row) for row in rows]
+
+    def memory_feedback_add(
+        self,
+        project: str,
+        memory_id: int,
+        query_fingerprint: str,
+        useful: bool,
+        decision: str | None = None,
+    ) -> int:
+        exists = self.db.execute(
+            "SELECT 1 FROM memory_items WHERE project=? AND id=?", (project, memory_id)
+        ).fetchone()
+        if not exists:
+            raise ForgeError("Memory item not found for retrieval feedback")
+        cur = self.db.execute(
+            "INSERT INTO memory_retrieval_feedback(project,memory_id,query_fingerprint,useful,decision,at) VALUES(?,?,?,?,?,?)",
+            (
+                project,
+                memory_id,
+                query_fingerprint,
+                int(bool(useful)),
+                decision[:500] if decision else None,
+                time.time(),
+            ),
+        )
+        return int(cur.lastrowid)
+
+    def memory_feedback_summary(self, project: str, memory_id: int) -> dict:
+        row = self.db.execute(
+            """
+            SELECT COUNT(*) AS observations, COALESCE(SUM(useful),0) AS useful
+            FROM memory_retrieval_feedback
+            WHERE project=? AND memory_id=?
+            """,
+            (project, memory_id),
+        ).fetchone()
+        observations = int(row["observations"])
+        useful = int(row["useful"])
+        return {
+            "observations": observations,
+            "useful": useful,
+            "usefulness_rate": useful / observations if observations else None,
+        }
