@@ -158,7 +158,9 @@ class CodeGraph:
 
 
 class _PythonVisitor(ast.NodeVisitor):
-    def __init__(self, indexer: "PythonCodeIndexer", graph: CodeGraph, path: str, module_id: str, source_hash: str):
+    def __init__(
+        self, indexer: "PythonCodeIndexer", graph: CodeGraph, path: str, module_id: str, source_hash: str
+    ):
         self.indexer = indexer
         self.graph = graph
         self.path = path
@@ -209,7 +211,11 @@ class _PythonVisitor(ast.NodeVisitor):
         self._add_named(node, SymbolKind.CLASS)
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
-        kind = SymbolKind.METHOD if self.current and self.current.kind == SymbolKind.CLASS else SymbolKind.FUNCTION
+        kind = (
+            SymbolKind.METHOD
+            if self.current and self.current.kind == SymbolKind.CLASS
+            else SymbolKind.FUNCTION
+        )
         self._add_named(node, kind, self._signature(node))
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
@@ -283,7 +289,9 @@ class PythonCodeIndexer:
         for path in self._python_files():
             raw = path.read_bytes()
             file_records.append((path, sha(raw), raw))
-        root_hash = sha(encoded([(str(path.relative_to(self.root)), digest) for path, digest, _ in file_records]))
+        root_hash = sha(
+            encoded([(str(path.relative_to(self.root)), digest) for path, digest, _ in file_records])
+        )
         graph = CodeGraph(str(self.root), root_hash=root_hash)
         deferred_imports: list[tuple[str, str]] = []
         deferred_calls: list[tuple[str, str]] = []
