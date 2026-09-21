@@ -68,7 +68,9 @@ class SpecialistResult:
     elapsed_seconds: float
 
 
-ModelInvoker = Callable[[SpecialistRequest, RoutingDecision, int], AgentProposal | Awaitable[AgentProposal]]
+ModelInvoker = Callable[
+    [SpecialistRequest, RoutingDecision, int], AgentProposal | Awaitable[AgentProposal]
+]
 Journal = Callable[[str, dict], None]
 
 
@@ -80,7 +82,9 @@ class SpecialistRuntime:
     proposed operations through Registry -> Policy -> ExecutionKernel and VerificationEngine.
     """
 
-    def __init__(self, router: ModelRouter, invoke: ModelInvoker, *, journal: Journal | None = None):
+    def __init__(
+        self, router: ModelRouter, invoke: ModelInvoker, *, journal: Journal | None = None
+    ):
         self.router = router
         self.invoke = invoke
         self.journal = journal
@@ -102,7 +106,11 @@ class SpecialistRuntime:
         profile = request.profile
         if request.budget.max_cost_usd is not None:
             limit = profile.max_estimated_cost_usd
-            effective = request.budget.max_cost_usd if limit is None else min(limit, request.budget.max_cost_usd)
+            effective = (
+                request.budget.max_cost_usd
+                if limit is None
+                else min(limit, request.budget.max_cost_usd)
+            )
             profile = TaskProfile(**{**profile.__dict__, "max_estimated_cost_usd": effective})
 
         route = self.router.route(profile)
@@ -129,7 +137,9 @@ class SpecialistRuntime:
                 if proposal.role != request.role or proposal.task_id != request.task_id:
                     raise ForgeError("Specialist proposal identity mismatch")
                 elapsed = time.monotonic() - started
-                result = SpecialistResult(proposal=proposal, route=route, turns=turn, elapsed_seconds=elapsed)
+                result = SpecialistResult(
+                    proposal=proposal, route=route, turns=turn, elapsed_seconds=elapsed
+                )
                 self._emit(
                     "specialist_finished",
                     {
@@ -159,7 +169,9 @@ class SpecialistRuntime:
 
         raise ForgeError(f"Specialist turn budget exhausted: {last_error}")
 
-    async def run_reviewer(self, request: SpecialistRequest, *, implementer_model_key: str) -> SpecialistResult:
+    async def run_reviewer(
+        self, request: SpecialistRequest, *, implementer_model_key: str
+    ) -> SpecialistResult:
         if request.role != SpecialistRole.REVIEWER:
             raise ForgeError("run_reviewer requires reviewer role")
         route = self.router.route(request.profile, exclude={implementer_model_key})
