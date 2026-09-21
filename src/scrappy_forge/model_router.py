@@ -133,7 +133,13 @@ class ModelRouter:
         capability_bonus += 0.08 if task.requires_tools and model.tool_support else 0.0
         capability_bonus += 0.05 if task.requires_structured_output and model.structured_outputs else 0.0
         capability_bonus += 0.05 if task.requires_computer_use and model.computer_use else 0.0
-        return 0.58 * model.reliability + 0.20 * latency_score + 0.17 * cost_score + capability_bonus - failure_penalty
+        return (
+            0.58 * model.reliability
+            + 0.20 * latency_score
+            + 0.17 * cost_score
+            + capability_bonus
+            - failure_penalty
+        )
 
     def route(self, task: TaskProfile, *, exclude: set[str] | None = None) -> RoutingDecision:
         reasoning = self.reasoning_policy.choose(
