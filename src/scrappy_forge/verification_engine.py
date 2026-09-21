@@ -57,9 +57,7 @@ class VerificationReport:
     def to_dict(self) -> dict:
         value = asdict(self)
         value["checks"] = [asdict(item) for item in self.checks]
-        value["findings"] = [
-            {**asdict(item), "severity": item.severity.value} for item in self.findings
-        ]
+        value["findings"] = [{**asdict(item), "severity": item.severity.value} for item in self.findings]
         return value
 
 
