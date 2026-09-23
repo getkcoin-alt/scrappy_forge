@@ -1,0 +1,56 @@
+name: Bug report
+description: Something in Scrappy Forge is not working as expected
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting it. Please remove secrets, private source code, and customer data before posting logs.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Tell us what you expected and what actually happened.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How can we reproduce it?
+      description: Minimal steps are much easier to debug.
+      placeholder: |
+        1. Run ...
+        2. Enter ...
+        3. See ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Scrappy Forge version or commit
+      placeholder: "0.4.0 / commit SHA"
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS and Python version
+      placeholder: "macOS 15 / Python 3.12"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: Paste only sanitized logs or traceback text.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Quick checks
+      options:
+        - label: I searched existing issues first.
+          required: true
+        - label: I removed credentials and private information.
+          required: true
