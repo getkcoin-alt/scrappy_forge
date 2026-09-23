@@ -96,6 +96,23 @@ forge setup
 forge doctor
 ```
 
+`forge doctor` includes a `checks` array with what was checked, whether it is
+required for the configured execution mode, a status, and a suggested next step.
+It checks the running Python version and Git/Docker on PATH. In `docker` mode it
+also runs read-only `docker info` and `docker image inspect` metadata checks
+against the selected Docker context, each with a five-second timeout. The image
+must already be available because execution uses `--pull=never`. No installation,
+image pull, container workload or privileged command is performed.
+
+In `trusted-local` mode Docker is optional and is not contacted. Doctor reports
+whether `--allow-local-execution` was supplied, without granting permission or
+starting a session. Git is optional for the built-in file snapshots and patch
+export. Check statuses distinguish `ok`, `missing`, `error`, `blocked` and
+`not_checked`; doctor retains exit code 0 when a diagnostic report is produced,
+even if prerequisites are missing. These checks do not prove provider, MCP or
+workload readiness. The CLI and its Python dependencies must be able to start
+before doctor can report diagnostics.
+
 The optional `auth` extra enables encrypted OAuth storage. `pip install -e .` is sufficient for memory-only OAuth and the other core features. Alternatively, install the included wheel from `dist/` into a virtual environment; its dependencies still need installation. `requirements-tested.txt` records the versions used for validation; it is an environment snapshot, not a cross-platform hashed lockfile.
 
 `forge` is available while that environment is activated. For a global isolated

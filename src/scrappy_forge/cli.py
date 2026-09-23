@@ -18,6 +18,7 @@ from . import __version__
 from .apply_changes import apply_verified, preview
 from .config import Settings, default_config
 from .credentials import openrouter_key
+from .doctor import prerequisite_checks
 from .engine import Engine, create_session
 from .policy import deny
 from .providers import ChatProvider
@@ -158,6 +159,7 @@ async def run(args):
                     "execution": s.execution,
                     "state_directory": str(s.home),
                     "live_inference_tested": False,
+                    "checks": prerequisite_checks(s, allow_local_execution=args.allow_local_execution),
                 },
                 indent=2,
             )
