@@ -1,0 +1,66 @@
+name: Bug report
+description: Report a reproducible problem in Scrappy Forge
+title: "[bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting it. Please remove secrets, private repository data and customer information from anything you paste here.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Tell us what you expected and what actually happened.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Give the smallest reliable steps or command that reproduces the problem.
+      placeholder: |
+        1. Install ...
+        2. Run ...
+        3. See ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Forge version or commit
+      placeholder: "0.4.0 or commit SHA"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, architecture and Python version.
+      placeholder: "macOS arm64, Python 3.12"
+    validations:
+      required: true
+  - type: dropdown
+    id: extensions
+    attributes:
+      label: Third-party plugins/connectors involved?
+      options:
+        - "No"
+        - "Yes"
+        - "Not sure"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: Redact tokens, credentials, private URLs and personal/customer data.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues for the same problem.
+          required: true
+        - label: I removed secrets and private data from the report.
+          required: true
