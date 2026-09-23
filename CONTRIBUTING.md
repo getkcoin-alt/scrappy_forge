@@ -84,6 +84,6 @@ Please **do not open a public issue for a vulnerability**. Follow [SECURITY.md](
 
 ## Licensing
 
-The repository's license governs contributions once the public open-source license is selected. Until then, do not assume that public visibility alone grants reuse rights.
+Scrappy Forge is licensed under the [Apache License 2.0](LICENSE). By submitting a contribution for inclusion in the project, you agree that it can be distributed under that license.
 
 Thanks for helping make the boring parts reliable. That is usually where the real agent engineering lives.
