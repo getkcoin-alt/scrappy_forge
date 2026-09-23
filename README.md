@@ -62,16 +62,18 @@ sh "$forge_installer"
 ```
 
 It installs a private Python 3.12 environment through uv, without
-sudo or access to the private GitHub repository. It also configures the optional
+sudo or requiring a GitHub checkout. It also configures the optional
 account-service origin. Open a new terminal, enter your project, and run `forge`.
 
 The installer targets Apple Silicon/Intel macOS and 64-bit Linux/WSL. Support
 depends on a compatible OS/Python/native dependencies; it is not a notarized
 standalone macOS binary. No universal device-compatibility claim is made.
 
-For contributors with repository access, Python 3.11+ is required:
+For contributors building from source, Python 3.11+ is required:
 
 ```bash
+git clone https://github.com/getkcoin-alt/scrappy_forge.git
+cd scrappy_forge
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e '.[auth]'
