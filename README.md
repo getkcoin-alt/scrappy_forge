@@ -317,3 +317,8 @@ Implementation references checked 27 August 2026:
 - [OpenRouter free router](https://openrouter.ai/openrouter/free)
 - [OpenRouter model catalog](https://openrouter.ai/docs/api/api-reference/models/list-all-models-and-their-properties)
 - [Claude Code MCP configuration](https://code.claude.com/docs/en/mcp)
+
+
+## License
+
+Apache License 2.0 — see [LICENSE](LICENSE).
