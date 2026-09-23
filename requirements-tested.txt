@@ -16,7 +16,7 @@ httpcore2==2.12.0
 httpx==0.28.1
 httpx2==2.12.0
 httpx-sse==0.4.3
-idna==3.19
+idna==3.20
 iniconfig==2.3.0
 jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
