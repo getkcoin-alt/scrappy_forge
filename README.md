@@ -4,6 +4,14 @@ A terminal coding agent with an execution loop, context compaction, persistent p
 
 **This is a working prototype, not a proven 10× improvement or a drop-in clone of Claude Code.** It can edit code in any text-based language and run installed toolchains through its terminal tool. Success still depends on the model, environment, task and verification. Start with non-sensitive projects.
 
+## Project status
+
+Scrappy Forge is moving toward a **public beta**. The local coding path, permission model, project memory, tool layer, MCP support, verification flow and release service are implemented and test-covered, but I am deliberately not calling it “production-ready” yet. The remaining bar is boring but important: stable hosted CI, broader live-provider testing, an external security review, release signing and more time with contributors using it on real projects.
+
+**Contributions are welcome.** If you want to improve the runtime, adapters, tests, docs, safety boundaries or developer experience, start with [CONTRIBUTING.md](CONTRIBUTING.md) and the open issues. Security findings should follow [SECURITY.md](SECURITY.md), not a public issue.
+
+The project is built in public-beta spirit: make claims we can verify, keep execution permissioned, and prefer a smaller mechanism that works over a bigger demo that only looks impressive.
+
 ## What was added
 
 Start with the [user guide](src/forge_hub/static/user-guide.md),
