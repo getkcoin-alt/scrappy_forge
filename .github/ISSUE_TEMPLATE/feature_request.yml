@@ -1,0 +1,38 @@
+name: Feature request
+description: Propose a focused improvement
+title: "[feature] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What real workflow or limitation are you trying to improve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the smallest useful version first.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What can users do today instead?
+  - type: dropdown
+    id: trust
+    attributes:
+      label: Does this change permissions, credentials, tool execution or external writes?
+      options:
+        - "No"
+        - "Yes"
+        - "Not sure"
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence / use case
+      description: Real examples, measurements or reproduction details are more useful than hype.
