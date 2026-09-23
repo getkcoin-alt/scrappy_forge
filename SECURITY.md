@@ -1,5 +1,13 @@
 # Security and deployment boundaries
 
+## Reporting a vulnerability
+
+Please do **not** open a public issue for a suspected vulnerability.
+
+While the repository is private, report security issues to **karnveer@scriza.in** with a short reproduction and affected version/commit. Once the repository is public, GitHub private vulnerability reporting / repository security advisories should be the preferred channel when enabled.
+
+Do not include real API keys, access tokens, customer data or unrelated private material in the report.
+
 Scrappy Forge 0.4 separates a local single-user coding agent from a public
 release/optional-account service. It is not a multi-tenant execution service.
 Do not expose CLI state or wrap code execution in a public API. Railway runs
