@@ -12,6 +12,21 @@ Scrappy Forge is moving toward a **public beta**. The local coding path, permiss
 
 The project is built in public-beta spirit: make claims we can verify, keep execution permissioned, and prefer a smaller mechanism that works over a bigger demo that only looks impressive.
 
+```mermaid
+flowchart LR
+    U[You] --> F[Forge session]
+    F --> M[Model]
+    M --> R[Proposed tool call]
+    R --> P{Policy / approval}
+    P -->|allowed| T[Tool]
+    P -->|denied| F
+    T --> E[Evidence + verification]
+    E --> F
+    F --> A[/User-controlled apply/]
+```
+
+The model can propose work. It does not get to promote its own proposal into permission.
+
 ## What was added
 
 Start with the [user guide](src/forge_hub/static/user-guide.md),
