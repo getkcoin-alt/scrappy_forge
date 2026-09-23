@@ -1,0 +1,34 @@
+name: Feature idea
+description: Suggest a useful capability or improvement
+title: "[idea] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Start with the problem rather than the implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like Scrappy Forge to do?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What are you doing today instead?
+  - type: textarea
+    id: safety
+    attributes:
+      label: Does this change permissions, external side effects, credentials, or trust boundaries?
+      description: "If yes, explain how."
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: I checked that this is not already covered by an existing issue.
+          required: true
