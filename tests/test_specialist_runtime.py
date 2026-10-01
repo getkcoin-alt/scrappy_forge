@@ -109,9 +109,7 @@ async def test_independent_reviewer_excludes_implementer_model():
         return AgentProposal(req.role, req.task_id, "review findings")
 
     runtime = SpecialistRuntime(router, invoke)
-    result = await runtime.run_reviewer(
-        request(SpecialistRole.REVIEWER), implementer_model_key=first.key
-    )
+    result = await runtime.run_reviewer(request(SpecialistRole.REVIEWER), implementer_model_key=first.key)
     assert result.route.primary.key == second.key
 
 
@@ -129,6 +127,4 @@ async def test_journal_contains_metadata_not_hidden_reasoning():
         journal=lambda kind, payload: events.append((kind, payload)),
     ).run(request())
     assert [kind for kind, _ in events] == ["specialist_started", "specialist_finished"]
-    assert all(
-        "reasoning" not in payload and "chain_of_thought" not in payload for _, payload in events
-    )
+    assert all("reasoning" not in payload and "chain_of_thought" not in payload for _, payload in events)
