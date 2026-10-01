@@ -29,7 +29,7 @@ prompt_toolkit==3.0.53
 pycparser==3.0
 pydantic==2.13.4
 pydantic-settings==2.15.0
-pydantic_core==2.46.4
+pydantic_core==2.49.0
 pytest==9.1.1
 pytest-asyncio==1.4.0
 python-dotenv==1.2.3
