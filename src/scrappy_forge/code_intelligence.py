@@ -219,7 +219,11 @@ class _PythonVisitor(ast.NodeVisitor):
         self._add_named(node, kind, self._signature(node))
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
-        kind = SymbolKind.METHOD if self.current and self.current.kind == SymbolKind.CLASS else SymbolKind.FUNCTION
+        kind = (
+            SymbolKind.METHOD
+            if self.current and self.current.kind == SymbolKind.CLASS
+            else SymbolKind.FUNCTION
+        )
         self._add_named(node, kind, self._signature(node))
 
     def visit_Import(self, node: ast.Import):
