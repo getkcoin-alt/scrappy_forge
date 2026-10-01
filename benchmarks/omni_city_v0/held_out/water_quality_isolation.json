@@ -1,0 +1,70 @@
+{
+  "schema_version": "omni-city.v0",
+  "scenario_id": "heldout-water-quality-001",
+  "title": "Water quality isolation before hospital resupply",
+  "description": "A distribution zone has a contamination alert. Isolate it, flush the safe bypass, then restore hospital supply within budget.",
+  "budget": 8,
+  "entities": [
+    {"id": "zone:east", "kind": "water_zone", "attributes": {"quality": "alert", "isolated": false}},
+    {"id": "bypass:east", "kind": "water_asset", "attributes": {"status": "standby", "flushed": false}},
+    {"id": "hospital:east", "kind": "hospital", "attributes": {"water_supply": "degraded"}},
+    {"id": "crew:quality-1", "kind": "response_crew", "attributes": {"assignment": "available"}}
+  ],
+  "relations": [
+    {"source": "zone:east", "relation": "normally_supplies", "target": "hospital:east"},
+    {"source": "bypass:east", "relation": "backup_for", "target": "zone:east"}
+  ],
+  "goals": [
+    {"entity": "zone:east", "attribute": "isolated", "equals": true, "weight": 2},
+    {"entity": "hospital:east", "attribute": "water_supply", "equals": "stable", "weight": 3}
+  ],
+  "actions": [
+    {
+      "id": "isolate-alert-zone",
+      "description": "Isolate the alerted distribution zone before using the bypass.",
+      "cost": 1,
+      "requires": [
+        {"entity": "zone:east", "attribute": "quality", "equals": "alert"}
+      ],
+      "effects": [
+        {"entity": "zone:east", "attribute": "isolated", "equals": true}
+      ]
+    },
+    {
+      "id": "flush-bypass",
+      "description": "Flush the standby bypass after the alerted zone is isolated.",
+      "cost": 2,
+      "requires": [
+        {"entity": "zone:east", "attribute": "isolated", "equals": true},
+        {"entity": "bypass:east", "attribute": "status", "equals": "standby"}
+      ],
+      "effects": [
+        {"entity": "bypass:east", "attribute": "flushed", "equals": true},
+        {"entity": "bypass:east", "attribute": "status", "equals": "ready"}
+      ]
+    },
+    {
+      "id": "restore-bypass-supply",
+      "description": "Restore hospital supply through the flushed, ready bypass.",
+      "cost": 2,
+      "requires": [
+        {"entity": "bypass:east", "attribute": "flushed", "equals": true},
+        {"entity": "bypass:east", "attribute": "status", "equals": "ready"}
+      ],
+      "effects": [
+        {"entity": "hospital:east", "attribute": "water_supply", "equals": "stable"}
+      ]
+    },
+    {
+      "id": "dispatch-quality-crew",
+      "description": "Assign the quality crew to investigate the isolated zone after supply continuity is restored.",
+      "cost": 2,
+      "requires": [
+        {"entity": "hospital:east", "attribute": "water_supply", "equals": "stable"}
+      ],
+      "effects": [
+        {"entity": "crew:quality-1", "attribute": "assignment", "equals": "investigate-zone-east"}
+      ]
+    }
+  ]
+}

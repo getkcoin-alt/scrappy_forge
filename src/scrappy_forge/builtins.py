@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 
+from .capabilities import append_pending_request, broker_from_settings, load_pending_requests
 from .tools import Tool, object_schema, text_schema
 from .util import ForgeError, sha
 from .workspace import diff, manifest
@@ -153,7 +154,6 @@ def register_builtins(engine):
         result = await engine.runner.run(
             args["argv"], ws.path(args.get("cwd", ".")), timeout=args.get("timeout", 60)
         )
-        # A command is not a trustworthy test just because its exit status is zero.
         return result
 
     add(
@@ -198,6 +198,64 @@ def register_builtins(engine):
         {"query": text_schema(200)},
         ["query"],
         discover,
+        active=True,
+    )
+
+    async def capabilities(args):
+        broker = broker_from_settings(engine.settings)
+        return {
+            "available": broker.list(),
+            "pending": load_pending_requests(engine.settings.home),
+            "note": "Handles are opaque metadata. Credential values are intentionally unavailable to model context.",
+        }
+
+    add(
+        "capability_list",
+        "List connected operator capabilities and pending capability requests without exposing secrets",
+        {},
+        [],
+        capabilities,
+        active=True,
+    )
+
+    async def request_capability(args):
+        broker = broker_from_settings(engine.settings)
+        existing = broker.find(args["kind"])
+        if existing:
+            return {
+                "status": "available",
+                "capabilities": [item.handle for item in existing],
+                "instruction": "Use the existing capability or discover its MCP/tool surface; do not request credentials.",
+            }
+        request = broker.request(
+            kind=args["kind"],
+            reason=args["reason"],
+            required_scope=args["required_scope"],
+            suggested_provider=args.get("suggested_provider"),
+            secret_required=args.get("secret_required", True),
+            permission_class="red",
+        )
+        append_pending_request(engine.settings.home, request)
+        engine.audit("capability_requested", request.to_dict())
+        return {
+            **request.to_dict(),
+            "blocked": True,
+            "instruction": "Tell the operator what capability is missing and stop dependent external work until it is connected.",
+        }
+
+    add(
+        "capability_request",
+        "Request a missing external capability such as Railway, proxy, API or MCP access. Stores metadata only; never ask for or store raw secrets.",
+        {
+            "kind": text_schema(80),
+            "required_scope": text_schema(200),
+            "reason": text_schema(500),
+            "suggested_provider": {"type": "string", "maxLength": 100},
+            "secret_required": {"type": "boolean"},
+        },
+        ["kind", "required_scope", "reason"],
+        request_capability,
+        risk="read",
         active=True,
     )
 

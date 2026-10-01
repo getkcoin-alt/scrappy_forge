@@ -18,6 +18,9 @@ jobs:
       - run: ruff format --check src tests examples validation
       - run: pytest -q
       - run: python validation/terminal_smoke.py
+      - name: Run controlled evolution dry cycle
+        if: matrix.python-version == '3.12'
+        run: python validation/controlled_evolution_smoke.py
   macos:
     runs-on: macos-latest
     steps:

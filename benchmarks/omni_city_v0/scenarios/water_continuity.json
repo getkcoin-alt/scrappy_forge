@@ -1,0 +1,50 @@
+{
+  "schema_version": "omni-city.v0",
+  "scenario_id": "water-continuity-001",
+  "title": "Hospital water continuity after primary pump failure",
+  "description": "A primary municipal pump fails. Restore stable hospital water supply without exceeding the response budget.",
+  "budget": 8,
+  "entities": [
+    {"id": "pump:primary", "kind": "water_asset", "attributes": {"status": "offline", "isolated": false}},
+    {"id": "pump:backup", "kind": "water_asset", "attributes": {"status": "standby"}},
+    {"id": "hospital:central", "kind": "hospital", "attributes": {"water_supply": "degraded"}},
+    {"id": "crew:water-1", "kind": "response_crew", "attributes": {"assignment": "available"}}
+  ],
+  "relations": [
+    {"source": "pump:primary", "relation": "supplies", "target": "hospital:central"},
+    {"source": "pump:backup", "relation": "backup_for", "target": "pump:primary"}
+  ],
+  "goals": [
+    {"entity": "hospital:central", "attribute": "water_supply", "equals": "stable", "weight": 3},
+    {"entity": "pump:primary", "attribute": "isolated", "equals": true, "weight": 1}
+  ],
+  "actions": [
+    {
+      "id": "isolate-primary",
+      "description": "Isolate the failed primary pump before switching supply.",
+      "cost": 1,
+      "requires": [{"entity": "pump:primary", "attribute": "status", "equals": "offline"}],
+      "effects": [{"entity": "pump:primary", "attribute": "isolated", "equals": true}]
+    },
+    {
+      "id": "activate-backup",
+      "description": "Bring the backup pump online after the failed primary is isolated.",
+      "cost": 2,
+      "requires": [
+        {"entity": "pump:primary", "attribute": "isolated", "equals": true},
+        {"entity": "pump:backup", "attribute": "status", "equals": "standby"}
+      ],
+      "effects": [
+        {"entity": "pump:backup", "attribute": "status", "equals": "online"},
+        {"entity": "hospital:central", "attribute": "water_supply", "equals": "stable"}
+      ]
+    },
+    {
+      "id": "dispatch-repair",
+      "description": "Assign the water crew to repair the primary pump after continuity is restored.",
+      "cost": 2,
+      "requires": [{"entity": "pump:primary", "attribute": "isolated", "equals": true}],
+      "effects": [{"entity": "crew:water-1", "attribute": "assignment", "equals": "repair-primary"}]
+    }
+  ]
+}
