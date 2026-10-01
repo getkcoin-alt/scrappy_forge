@@ -36,10 +36,21 @@ async def process(argv, cwd: Path, *, timeout=60, input_text=None, env=None, max
     chunks, size, limited = [], 0, False
 
     def kill():
+        if proc.returncode is not None:
+            return
         try:
             os.killpg(proc.pid, signal.SIGKILL)
+            return
         except ProcessLookupError:
-            pass
+            return
+        except (PermissionError, OSError):
+            # Some constrained macOS runners reject process-group signals even
+            # for a subprocess started in a new session. Fall back to killing
+            # the direct child so output/time limits still fail closed.
+            try:
+                proc.kill()
+            except ProcessLookupError:
+                pass
 
     async def collect():
         nonlocal size, limited
