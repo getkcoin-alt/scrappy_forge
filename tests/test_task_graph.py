@@ -230,3 +230,14 @@ async def test_failed_reservation_prevents_any_executor_calls():
         await Scheduler(graph).run_ready(execute, on_started=cannot_persist)
     assert calls == 0
     assert graph.nodes["read"].state == NodeState.FAILED
+
+
+@pytest.mark.parametrize("invalid", [float("nan"), float("inf"), float("-inf"), "later", True, -1])
+def test_task_deadline_requires_finite_unix_timestamp(invalid):
+    with pytest.raises(ForgeError, match="finite Unix timestamp"):
+        TaskNode(id="bad-deadline", kind="read", deadline=invalid)
+
+
+def test_mutating_node_cannot_hide_side_effect_class():
+    with pytest.raises(ForgeError, match="side-effect class"):
+        TaskNode(id="bad-write", kind="edit", mutates=True, idempotency=IdempotencyClass.IDEMPOTENT)
