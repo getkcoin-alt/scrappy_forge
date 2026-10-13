@@ -81,8 +81,22 @@ if ! healthy 18081; then
 fi
 docker rm -f "$CANDIDATE" >/dev/null
 
+# Repair an interrupted previous promotion before touching the live service.
+# The old container is retained under BACKUP until promotion is confirmed.
+if docker container inspect "$BACKUP" >/dev/null 2>&1; then
+  if ! docker container inspect "$LIVE" >/dev/null 2>&1; then
+    docker rename "$BACKUP" "$LIVE"
+    docker start "$LIVE" >/dev/null
+  elif healthy 18080; then
+    docker rm -f "$BACKUP" >/dev/null
+  else
+    docker rm -f "$LIVE" >/dev/null
+    docker rename "$BACKUP" "$LIVE"
+    docker start "$LIVE" >/dev/null
+  fi
+fi
+
 # Retain the previous container so a failed promotion is reversible.
-docker rm -f "$BACKUP" >/dev/null 2>&1 || true
 HAD_PREVIOUS=0
 if docker container inspect "$LIVE" >/dev/null 2>&1; then
   HAD_PREVIOUS=1
