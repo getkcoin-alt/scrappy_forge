@@ -102,7 +102,9 @@ class Scheduler:
             return
         self.graph.transition(node.id, NodeState.VERIFIED, result=result)
 
-    async def run_ready(self, executor: Executor, *, on_started: Callable[[], None] | None = None) -> list[TaskNode]:
+    async def run_ready(
+        self, executor: Executor, *, on_started: Callable[[], None] | None = None
+    ) -> list[TaskNode]:
         batch = self.next_batch().nodes
         if not batch:
             return []
@@ -116,7 +118,9 @@ class Scheduler:
                 on_started()
             except BaseException:
                 for node in batch:
-                    self.graph.transition(node.id, NodeState.FAILED, error="failed to persist execution reservation")
+                    self.graph.transition(
+                        node.id, NodeState.FAILED, error="failed to persist execution reservation"
+                    )
                 raise
         await asyncio.gather(*(self._run_one(node, executor) for node in batch))
         return list(batch)
