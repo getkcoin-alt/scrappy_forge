@@ -1,0 +1,95 @@
+name: Deploy Forge Hub to VPS
+
+on:
+  workflow_run:
+    workflows: ["tests"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forge-hub-production-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Never execute a deploy for PR builds or failed test runs.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      VPS_HOST: 31.97.227.171
+      VPS_USER: forge-deploy
+      FORGE_DOMAIN: ${{ vars.FORGE_DOMAIN || '31-97-227-171.sslip.io' }}
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - name: Checkout exact tested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+          persist-credentials: false
+
+      - name: Verify source and deployment scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$DEPLOY_SHA" ]]
+          bash -n deploy/vps/bootstrap.sh deploy/vps/deploy.sh
+          # Prevent delayed older workflows from downgrading production.
+          test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/main | cut -f1)" = "$DEPLOY_SHA"
+
+      - name: Configure pinned SSH trust
+        shell: bash
+        env:
+          VPS_SSH_KEY: ${{ secrets.FORGE_VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.FORGE_VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$VPS_SSH_KEY" || -z "$VPS_KNOWN_HOSTS" ]]; then
+            echo "::error::Configure FORGE_VPS_SSH_KEY and FORGE_VPS_KNOWN_HOSTS GitHub Actions secrets."
+            exit 1
+          fi
+          install -m 0700 -d "$HOME/.ssh"
+          printf '%s\n' "$VPS_SSH_KEY" | tr -d '\r' > "$HOME/.ssh/forge_vps"
+          chmod 0600 "$HOME/.ssh/forge_vps"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 0600 "$HOME/.ssh/known_hosts"
+          ssh-keygen -lf "$HOME/.ssh/known_hosts"
+
+      - name: Upload audited source bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          git archive --format=tar HEAD | gzip -n > /tmp/forge-source.tar.gz
+          scp -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes \
+            -o ConnectTimeout=15 -i "$HOME/.ssh/forge_vps" \
+            /tmp/forge-source.tar.gz \
+            "$VPS_USER@$VPS_HOST:/opt/scrappy-forge/incoming/forge-$DEPLOY_SHA.tar.gz"
+
+      - name: Build, health-check and promote on the VPS
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes \
+            -o ConnectTimeout=15 -i "$HOME/.ssh/forge_vps" \
+            "$VPS_USER@$VPS_HOST" \
+            "FORGE_DOMAIN='$FORGE_DOMAIN' bash -s -- '$DEPLOY_SHA'" < deploy/vps/deploy.sh
+
+      - name: Check public HTTPS readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+            --retry 8 --retry-delay 3 --max-time 12 \
+            "https://$FORGE_DOMAIN/readyz"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+            --max-time 12 "https://$FORGE_DOMAIN/v1/status" | python3 -c \
+            'import json,sys,os; v=json.load(sys.stdin); assert v["commit"] == os.environ["DEPLOY_SHA"]; assert v["release_ready"]'
