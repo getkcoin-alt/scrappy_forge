@@ -4,13 +4,13 @@
 
 Please do **not** open a public issue for a suspected vulnerability.
 
-While the repository is private, report security issues to **karnveer@scriza.in** with a short reproduction and affected version/commit. Once the repository is public, GitHub private vulnerability reporting / repository security advisories should be the preferred channel when enabled.
+Report security issues to **karnveer@scriza.in** with a short reproduction and affected version/commit. Use GitHub private vulnerability reporting / repository security advisories when enabled.
 
 Do not include real API keys, access tokens, customer data or unrelated private material in the report.
 
 Scrappy Forge 0.4 separates a local single-user coding agent from a public
 release/optional-account service. It is not a multi-tenant execution service.
-Do not expose CLI state or wrap code execution in a public API. Railway runs
+Do not expose CLI state or wrap code execution in a public API. The self-hosted VPS runs
 `forge-hub`, never users' tasks, terminal commands or projects.
 
 ## New 0.4 trust boundaries
@@ -39,8 +39,7 @@ Do not expose CLI state or wrap code execution in a public API. Railway runs
   for the session; issued access tokens may survive until expiry. The CLI rotates
   refresh tokens under a binding lock; ambiguous refresh failures require login.
 - Rate limits are bounded and in-process. Use one worker/replica until a shared
-  limiter exists. Do not trust arbitrary forwarding headers. Behind Railway's
-  proxy the peer-based limit may be shared by multiple users; add a verified
+  limiter exists. Do not trust arbitrary forwarding headers. Behind any reverse proxy the peer-based limit may be shared by multiple users; add a verified
   edge/rate-limit design before account signup at scale.
 - Password recovery, account deletion, MFA UX, CAPTCHA, production email,
   chosen terms/privacy policy and live-provider review are public-signup gates,

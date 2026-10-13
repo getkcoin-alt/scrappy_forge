@@ -260,3 +260,22 @@ def test_rate_limiter_capacity_and_reset():
 def test_public_origin_cannot_inject_installer(origin):
     with pytest.raises(ValueError):
         create_app(HubSettings(public_url=origin))
+
+
+def test_standalone_hub_environment_ignores_railway_metadata(monkeypatch):
+    monkeypatch.setenv("RAILWAY_PUBLIC_DOMAIN", "stale.example")
+    monkeypatch.setenv("RAILWAY_GIT_COMMIT_SHA", "stale-commit")
+    monkeypatch.setenv("FORGE_PUBLIC_URL", "https://31-97-227-171.sslip.io")
+    monkeypatch.setenv("FORGE_GIT_COMMIT_SHA", "a" * 40)
+    settings = HubSettings.environment()
+    assert settings.public_url == "https://31-97-227-171.sslip.io"
+    assert settings.commit == "a" * 40
+
+
+def test_standalone_hub_loopback_default(monkeypatch):
+    monkeypatch.delenv("FORGE_PUBLIC_URL", raising=False)
+    monkeypatch.delenv("FORGE_GIT_COMMIT_SHA", raising=False)
+    monkeypatch.setenv("RAILWAY_PUBLIC_DOMAIN", "old.example")
+    settings = HubSettings.environment()
+    assert settings.public_url == "http://127.0.0.1:8080"
+    assert settings.commit == "unknown"

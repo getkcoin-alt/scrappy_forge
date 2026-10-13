@@ -1,4 +1,4 @@
-"""Railway ASGI service: releases + optional managed accounts. No remote execution."""
+"""Standalone ASGI release service + optional managed accounts. No remote execution."""
 
 from __future__ import annotations
 
@@ -32,14 +32,13 @@ class HubSettings:
 
     @classmethod
     def environment(cls):
-        domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
-        public = os.environ.get("FORGE_PUBLIC_URL") or (
-            "https://" + domain if domain else "http://127.0.0.1:8080"
-        )
+        # Hosting-provider independent: the reverse proxy supplies a canonical
+        # HTTPS origin; local development may use loopback HTTP.
+        public = os.environ.get("FORGE_PUBLIC_URL", "http://127.0.0.1:8080")
         return cls(
             public.rstrip("/"),
             Path(os.environ.get("FORGE_RELEASE_DIR", "dist")),
-            os.environ.get("RAILWAY_GIT_COMMIT_SHA", "unknown"),
+            os.environ.get("FORGE_GIT_COMMIT_SHA", "unknown"),
             AuthConfig(
                 os.environ.get("SUPABASE_URL", ""),
                 os.environ.get("SUPABASE_PUBLISHABLE_KEY", ""),
@@ -384,7 +383,7 @@ def create_app(settings=None, *, auth_transport=None):
 def main():
     import uvicorn
 
-    # One worker: rate limits are in-process. No trusted forwarded headers from arbitrary clients.
+    # One worker: rate limits are in-process. Trust no forwarded headers from arbitrary clients.
     uvicorn.run(
         create_app(),
         host="0.0.0.0",

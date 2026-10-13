@@ -8,10 +8,10 @@ price commitment, service-level agreement, or claim that future features ship.
 | Local BYOK | Implemented | Terminal loop, approvals, workspace copies, verification/apply, compaction, project memory, structured world graph, supported MCP/plugins/skills. Bring your OpenRouter key or local model. No Forge account needed. |
 | Account beta | Backend implemented; disabled until configured | Verified email sign-in, profile, refresh/logout, owner-only account listing and suspend/restore. No cross-device source/session synchronization. |
 | Team | Future; no price set | Shared policy, organization roles, centralized opt-in audit and usage controls require design, implementation and review. Not included today. |
-| Managed execution | Future; no price set | Would require isolated workers, tenant boundaries, quotas, billing and explicit code-upload consent. Railway does not execute user projects today. |
+| Managed execution | Future; no price set | Would require isolated workers, tenant boundaries, quotas, billing and explicit code-upload consent. The VPS release service does not execute user projects. |
 
 There is no Forge payment flow in this preview. OpenRouter, model providers,
-connectors, local compute and Railway may have their own quotas or charges.
+connectors, local compute and user-owned hosting may have their own quotas or charges.
 The CLI never silently falls back from free OpenRouter routing to paid models.
 
 ## User and owner separation

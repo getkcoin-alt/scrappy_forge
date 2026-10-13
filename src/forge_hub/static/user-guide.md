@@ -1,6 +1,6 @@
 # Scrappy Forge 0.4 — user guide
 
-Forge is a local terminal coding agent. Railway distributes the CLI and can host
+Forge is a local terminal coding agent. A self-hosted VPS distributes the CLI and can host
 an optional account service. It does not receive your model key, execute your
 project, or store your world graph. Accounts are not required for local BYOK use.
 

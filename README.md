@@ -1,6 +1,6 @@
 # Scrappy Forge 0.4 — local-first terminal coding agent
 
-A terminal coding agent with an execution loop, context compaction, persistent project memory, permission-aware tools, plugins and MCP connections. Version 0.4 adds masked API-key onboarding, a queryable files/processes/network/windows graph, a public wheel installer, and a Railway release service with optional account authentication. It builds on the tested 0.3 core; this is not a new foundation-model training project.
+A terminal coding agent with an execution loop, context compaction, persistent project memory, permission-aware tools, plugins and MCP connections. Version 0.4 adds masked API-key onboarding, a queryable files/processes/network/windows graph, a public wheel installer, and a self-hosted release service with optional account authentication. It builds on the tested 0.3 core; this is not a new foundation-model training project.
 
 **This is a working prototype, not a proven 10× improvement or a drop-in clone of Claude Code.** It can edit code in any text-based language and run installed toolchains through its terminal tool. Success still depends on the model, environment, task and verification. Start with non-sensitive projects.
 
@@ -32,7 +32,7 @@ The model can propose work. It does not get to promote its own proposal into per
 Start with the [user guide](src/forge_hub/static/user-guide.md),
 [plans and availability](src/forge_hub/static/plans.md),
 [world-model contract](src/forge_hub/static/world-model.md), and
-[Railway deployment runbook](DEPLOYMENT.md).
+[VPS deployment runbook](DEPLOYMENT.md).
 
 The account panel is user-only. There is no admin frontend, hosted code runner,
 source sync or billing. Account registration stays closed until configured;
@@ -62,16 +62,16 @@ local files/keys or disable offline local coding through this backend.
 
 ## Install on macOS or Linux
 
-Public release service: [Scrappy Forge](https://forge-hub-production.up.railway.app).
-[User guide](https://forge-hub-production.up.railway.app/guide) ·
-[Plans](https://forge-hub-production.up.railway.app/plans) ·
-[Release metadata](https://forge-hub-production.up.railway.app/v1/releases/latest).
+Self-hosted release service (available **after** VPS bootstrap, TLS and the first successful deploy): [Scrappy Forge](https://31-97-227-171.sslip.io).
+[User guide](https://31-97-227-171.sslip.io/guide) ·
+[Plans](https://31-97-227-171.sslip.io/plans) ·
+[Release metadata](https://31-97-227-171.sslip.io/v1/releases/latest).
 
 Download, inspect, then run the installer:
 
 ```sh
 forge_installer=$(mktemp)
-curl --proto '=https' --tlsv1.2 -fL 'https://forge-hub-production.up.railway.app/install.sh' -o "$forge_installer"
+curl --proto '=https' --tlsv1.2 -fL 'https://31-97-227-171.sslip.io/install.sh' -o "$forge_installer"
 less "$forge_installer"
 sh "$forge_installer"
 ```
@@ -139,7 +139,7 @@ It prompts for permission before edits and commands. Read the displayed tool, ar
 First run asks for your key with masked input, or run `forge setup`. Validation
 contacts only OpenRouter's key endpoint, not a model. Opt-in saving uses a 0600
 local file, not encryption or macOS Keychain. `forge setup --forget-key` removes
-the saved key. The Railway service never receives this key.
+the saved key. The VPS release service never receives this key.
 
 Alternatively, set `OPENROUTER_API_KEY` in your local environment or secret
 manager; this takes precedence over a saved key. Do not put it in a task, config
@@ -313,9 +313,9 @@ The wheel-install test covers masked terminal key entry, verified apply and a
 real localhost release server. Scripted fixtures do not establish LLM reasoning
 quality or real-provider compatibility. Generated transcripts are not committed.
 
-Still outside this release: automatic account provisioning or universal OAuth compatibility, legacy MCP SSE/WebSocket transports, server-initiated sampling/elicitation, a marketplace/package installer, embedding memory, a language server, distributed/multi-agent scheduling, production deployment automation, service-fixture orchestration, native Windows support, and exhaustive third-party plugin compatibility. Binary patch export, symlink projects and file/directory replacements through `/apply` are unsupported. Snapshots are capped at 100 MB/10,000 files, with 5 MB per included file and 1 MB per file for text tools. Common caches and credential filenames are excluded, including `.mcp.json`, but full `.gitignore` semantics and comprehensive secret detection are not implemented.
+Still outside this release: automatic account provisioning or universal OAuth compatibility, legacy MCP SSE/WebSocket transports, server-initiated sampling/elicitation, a marketplace/package installer, embedding memory, a language server, distributed/multi-agent scheduling, production deployment automation for user projects, service-fixture orchestration, native Windows support, and exhaustive third-party plugin compatibility. Binary patch export, symlink projects and file/directory replacements through `/apply` are unsupported. Snapshots are capped at 100 MB/10,000 files, with 5 MB per included file and 1 MB per file for text tools. Common caches and credential filenames are excluded, including `.mcp.json`, but full `.gitignore` semantics and comprehensive secret detection are not implemented.
 
-The code tools work on text in any language; execution requires a suitable installed toolchain or prepared image. Docker and live OpenRouter inference were not available for validation here. Do not use this prototype as an unrestricted production operator.
+The code tools work on text in any language; execution requires a suitable installed toolchain or prepared image. Live OpenRouter inference has not been validated against every supported model/provider. Do not use this prototype as an unrestricted production operator.
 
 **Use it for progressively broader coding tasks after validating each workflow.** Do not call it universally compatible or 10× better before measuring accepted changes, human review time, failures and cost against a strong baseline.
 
