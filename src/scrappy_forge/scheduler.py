@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from dataclasses import dataclass
 from typing import Awaitable, Callable
 
@@ -59,16 +60,31 @@ class Scheduler:
         return ScheduledBatch(tuple(selected))
 
     async def _run_one(self, node: TaskNode, executor: Executor) -> None:
-        self.graph.transition(node.id, NodeState.RUNNING)
-        node.attempts += 1
+        # RUNNING and the attempt count are durably reserved before this method
+        # is dispatched. A controller crash must never turn an in-flight write
+        # back into a READY operation.
+        if node.deadline is not None and node.deadline <= time.time():
+            self.graph.transition(node.id, NodeState.FAILED, error="deadline expired before execution")
+            return
         try:
-            result = await executor(node)
+            if node.deadline is None:
+                result = await executor(node)
+            else:
+                # Deadlines are absolute Unix timestamps so they survive restarts.
+                async with asyncio.timeout(max(0, node.deadline - time.time())):
+                    result = await executor(node)
         except asyncio.CancelledError:
-            self.graph.transition(node.id, NodeState.CANCELLED, error="cancelled")
+            # Cancellation does not prove the write never reached its target.
+            if node.side_effect != SideEffectClass.NONE:
+                self.graph.transition(
+                    node.id, NodeState.UNCERTAIN, error="cancelled during side effect; reconcile before retry"
+                )
+            else:
+                self.graph.transition(node.id, NodeState.CANCELLED, error="cancelled")
             raise
         except Exception as exc:  # executor is a controller boundary; normalize failures here
             message = str(exc)[:1000]
-            uncertain_external = node.side_effect == SideEffectClass.EXTERNAL and node.idempotency in {
+            uncertain_external = node.side_effect != SideEffectClass.NONE and node.idempotency in {
                 IdempotencyClass.RECONCILE_BEFORE_RETRY,
                 IdempotencyClass.NON_IDEMPOTENT,
             }
@@ -86,10 +102,26 @@ class Scheduler:
             return
         self.graph.transition(node.id, NodeState.VERIFIED, result=result)
 
-    async def run_ready(self, executor: Executor) -> list[TaskNode]:
+    async def run_ready(
+        self, executor: Executor, *, on_started: Callable[[], None] | None = None
+    ) -> list[TaskNode]:
         batch = self.next_batch().nodes
         if not batch:
             return []
+        for node in batch:
+            self.graph.transition(node.id, NodeState.RUNNING)
+            node.attempts += 1
+        # Synchronous, fail-closed persistence hook. No executor is invoked
+        # until every RUNNING reservation has been saved by the controller.
+        if on_started is not None:
+            try:
+                on_started()
+            except BaseException:
+                for node in batch:
+                    self.graph.transition(
+                        node.id, NodeState.FAILED, error="failed to persist execution reservation"
+                    )
+                raise
         await asyncio.gather(*(self._run_one(node, executor) for node in batch))
         return list(batch)
 

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from .continuity import MissionStore
 from .scheduler import Scheduler
 from .steering import SteeringBus, SteeringEvent, SteeringKind
-from .task_graph import NodeState, TaskGraph, TaskNode
+from .task_graph import IdempotencyClass, NodeState, SideEffectClass, TaskGraph, TaskNode
 from .util import ForgeError
 
 
@@ -67,15 +67,16 @@ class MissionController:
         for node in self.graph.nodes.values():
             if node.state != NodeState.RUNNING:
                 continue
-            # Local/read work can be rescheduled from trusted state; external work cannot.
-            if node.side_effect.value == "external":
+            # Only effect-free read operations can be safely replayed. A local
+            # edit, host command or external action may have partially completed.
+            if node.side_effect != SideEffectClass.NONE or node.idempotency != IdempotencyClass.READ_ONLY:
                 self.graph.transition(
                     node.id,
                     NodeState.UNCERTAIN,
-                    error="controller restarted while external operation was running; reconcile before retry",
+                    error="controller restarted during a side-effecting operation; reconcile before retry",
                 )
             else:
-                message = "controller restarted while operation was running"
+                message = "controller restarted while read-only operation was running"
                 self.graph.transition(node.id, NodeState.FAILED, error=message)
                 self.graph.transition(node.id, NodeState.READY, error=message)
 
@@ -188,7 +189,7 @@ class MissionController:
         if not batch:
             return []
         self.store.append_event("batch_started", {"nodes": [node.id for node in batch]})
-        result = await self.scheduler.run_ready(executor)
+        result = await self.scheduler.run_ready(executor, on_started=self._persist)
         self.store.append_event(
             "batch_finished",
             {"nodes": [node.id for node in result], "states": {node.id: node.state.value for node in result}},

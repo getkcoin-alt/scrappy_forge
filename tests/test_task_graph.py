@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 import pytest
 
@@ -130,3 +131,113 @@ def test_graph_round_trip_preserves_state():
 def test_mutation_must_declare_idempotency():
     with pytest.raises(ForgeError, match="cannot be classified read-only"):
         TaskNode(id="bad", kind="edit", mutates=True)
+
+
+async def test_expired_deadline_never_invokes_external_executor():
+    graph = TaskGraph("deadline")
+    graph.add(
+        TaskNode(
+            id="publish",
+            kind="external",
+            deadline=time.time() - 1,
+            mutates=True,
+            idempotency=IdempotencyClass.NON_IDEMPOTENT,
+            side_effect=SideEffectClass.EXTERNAL,
+        )
+    )
+    calls = 0
+
+    async def execute(_):
+        nonlocal calls
+        calls += 1
+        return {"sent": True}
+
+    await Scheduler(graph).run_ready(execute)
+    assert calls == 0
+    assert graph.nodes["publish"].state == NodeState.FAILED
+    assert "before execution" in graph.nodes["publish"].error
+
+
+async def test_deadline_during_external_write_requires_reconciliation():
+    graph = TaskGraph("deadline")
+    graph.add(
+        TaskNode(
+            id="publish",
+            kind="external",
+            deadline=time.time() + 0.1,
+            mutates=True,
+            idempotency=IdempotencyClass.RECONCILE_BEFORE_RETRY,
+            side_effect=SideEffectClass.EXTERNAL,
+            max_retries=3,
+        )
+    )
+    calls = 0
+
+    async def execute(_):
+        nonlocal calls
+        calls += 1
+        await asyncio.sleep(1)
+        return {"sent": True}
+
+    scheduler = Scheduler(graph)
+    await scheduler.run_ready(execute)
+    assert calls == 1
+    assert graph.nodes["publish"].state == NodeState.UNCERTAIN
+    await scheduler.run_ready(execute)
+    assert calls == 1
+
+
+async def test_cancellation_during_external_operation_never_marks_safe_cancelled():
+    graph = TaskGraph("cancel")
+    graph.add(
+        TaskNode(
+            id="send",
+            kind="external",
+            mutates=True,
+            idempotency=IdempotencyClass.NON_IDEMPOTENT,
+            side_effect=SideEffectClass.EXTERNAL,
+        )
+    )
+    entered = asyncio.Event()
+
+    async def execute(_):
+        entered.set()
+        await asyncio.sleep(60)
+        return {}
+
+    task = asyncio.create_task(Scheduler(graph).run_ready(execute))
+    await asyncio.wait_for(entered.wait(), timeout=1)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert graph.nodes["send"].state == NodeState.UNCERTAIN
+
+
+async def test_failed_reservation_prevents_any_executor_calls():
+    graph = TaskGraph("fail-closed")
+    graph.add(read_node("read"))
+    calls = 0
+
+    async def execute(_):
+        nonlocal calls
+        calls += 1
+        return {}
+
+    def cannot_persist():
+        raise OSError("disk full")
+
+    with pytest.raises(OSError, match="disk full"):
+        await Scheduler(graph).run_ready(execute, on_started=cannot_persist)
+    assert calls == 0
+    assert graph.nodes["read"].state == NodeState.FAILED
+
+
+@pytest.mark.parametrize("invalid", [float("nan"), float("inf"), float("-inf"), "later", True, -1])
+def test_task_deadline_requires_finite_unix_timestamp(invalid):
+    with pytest.raises(ForgeError, match="finite Unix timestamp"):
+        TaskNode(id="bad-deadline", kind="read", deadline=invalid)
+
+
+def test_mutating_node_cannot_hide_side_effect_class():
+    with pytest.raises(ForgeError, match="side-effect class"):
+        TaskNode(id="bad-write", kind="edit", mutates=True, idempotency=IdempotencyClass.IDEMPOTENT)
