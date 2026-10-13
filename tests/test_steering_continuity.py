@@ -116,7 +116,7 @@ def test_wrong_mission_steering_is_rejected(tmp_path):
         controller.apply_steering(event)
 
 
-def test_restore_requeues_interrupted_local_operation(tmp_path):
+def test_restore_requires_reconciliation_for_interrupted_local_write(tmp_path):
     graph = TaskGraph("mission-a")
     graph.add(edit_node("edit"))
     graph.transition("edit", NodeState.RUNNING)
@@ -124,8 +124,47 @@ def test_restore_requeues_interrupted_local_operation(tmp_path):
     MissionController.create(graph, store)
 
     restored = MissionController.restore(store)
-    assert restored.graph.nodes["edit"].state == NodeState.READY
-    assert "restarted" in restored.graph.nodes["edit"].error
+    assert restored.graph.nodes["edit"].state == NodeState.UNCERTAIN
+    assert "reconcile before retry" in restored.graph.nodes["edit"].error
+
+
+def test_restore_requeues_effect_free_interrupted_read(tmp_path):
+    graph = TaskGraph("mission-a")
+    graph.add(read_node("inspect"))
+    graph.transition("inspect", NodeState.RUNNING)
+    store = MissionStore(tmp_path, "mission-a")
+    MissionController.create(graph, store)
+
+    restored = MissionController.restore(store)
+    assert restored.graph.nodes["inspect"].state == NodeState.READY
+    assert "read-only" in restored.graph.nodes["inspect"].error
+
+
+async def test_running_reservation_is_durable_before_executor_called(tmp_path):
+    graph = TaskGraph("mission-a")
+    graph.add(
+        TaskNode(
+            id="publish",
+            kind="external",
+            mutates=True,
+            resources=("external:release",),
+            idempotency=IdempotencyClass.NON_IDEMPOTENT,
+            side_effect=SideEffectClass.EXTERNAL,
+        )
+    )
+    store = MissionStore(tmp_path, "mission-a")
+    controller = MissionController.create(graph, store)
+
+    async def executor(node):
+        # A process crash at this point must leave a persisted RUNNING state,
+        # never READY, regardless of the state of the network response.
+        snapshot, _ = store.restore_graph()
+        assert snapshot.nodes[node.id].state == NodeState.RUNNING
+        assert snapshot.nodes[node.id].attempts == 1
+        return {"ok": True}
+
+    await controller.run_ready(executor)
+    assert store.restore_graph()[0].nodes["publish"].state == NodeState.VERIFIED
 
 
 def test_restore_marks_interrupted_external_operation_uncertain(tmp_path):
