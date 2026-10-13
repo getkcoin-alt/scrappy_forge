@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from enum import Enum
+from math import isfinite
 
 from .util import ForgeError
 
@@ -64,10 +65,16 @@ class TaskNode:
     def __post_init__(self):
         if not self.id or len(self.id) > 128:
             raise ForgeError("Task node ID must contain 1-128 characters")
-        if self.max_retries < 0:
-            raise ForgeError("Task node retry count cannot be negative")
+        if type(self.max_retries) is not int or self.max_retries < 0:
+            raise ForgeError("Task node retry count must be a non-negative integer")
+        if self.deadline is not None and (
+            type(self.deadline) not in (int, float) or not isfinite(self.deadline) or self.deadline < 0
+        ):
+            raise ForgeError("Task deadline must be a finite Unix timestamp")
         if self.mutates and self.idempotency == IdempotencyClass.READ_ONLY:
             raise ForgeError("Mutating task node cannot be classified read-only")
+        if self.mutates and self.side_effect == SideEffectClass.NONE:
+            raise ForgeError("Mutating task node must declare its side-effect class")
         if self.side_effect == SideEffectClass.EXTERNAL and self.idempotency == IdempotencyClass.READ_ONLY:
             raise ForgeError("External task node requires explicit idempotency classification")
 
