@@ -46,7 +46,7 @@ flowchart TD
 ## Local execution versus hosted control plane
 
 The CLI owns model credentials, source copies, context, memory, tools and world
-state. It connects directly to OpenRouter/a configured loopback model. Railway
+state. It connects directly to OpenRouter/a configured loopback model. The self-hosted VPS
 serves the package and optional account API only; it has no agent-loop endpoint.
 The account provider owns identities and sessions. Local use does not depend on
 an account or give the service access to the machine.
