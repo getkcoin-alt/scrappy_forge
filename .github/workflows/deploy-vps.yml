@@ -41,6 +41,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$FORGE_DOMAIN" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]]
+          [[ "$FORGE_DOMAIN" != *..* ]]
           [[ "$(git rev-parse HEAD)" == "$DEPLOY_SHA" ]]
           bash -n deploy/vps/bootstrap.sh deploy/vps/deploy.sh
           # Prevent delayed older workflows from downgrading production.
