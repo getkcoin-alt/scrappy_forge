@@ -13,8 +13,16 @@ DOMAIN="${2:-31-97-227-171.sslip.io}"
 [[ -f /etc/debian_version ]] || { echo "This bootstrap supports Debian/Ubuntu apt systems only" >&2; exit 2; }
 
 apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io curl ca-certificates iproute2
-systemctl enable --now docker
+DEBIAN_FRONTEND=noninteractive apt-get install -y curl ca-certificates iproute2
+# Existing VPS apps may already rely on Docker CE. Never replace that installation.
+if ! command -v docker >/dev/null 2>&1; then
+  DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io
+  systemctl enable --now docker
+fi
+if ! docker info >/dev/null 2>&1; then
+  echo "Docker daemon is unavailable; inspect the existing service without replacing it" >&2
+  exit 1
+fi
 
 if ! id forge-deploy >/dev/null 2>&1; then
   useradd --create-home --shell /bin/bash forge-deploy
