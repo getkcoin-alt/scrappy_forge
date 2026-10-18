@@ -1,0 +1,15 @@
+{
+  "schema": "scrappy-platform.v1",
+  "protocol": "SYNCBOND",
+  "protocol_version": "5.0.0",
+  "primary_interface": "scrappy",
+  "components": [
+    {"name":"scrappy-os","repository":"git@github.com:getkcoin-alt/-scrappy-os.git","ref":"architecture/syncbond-v5","sha":"ffcf0f9b211190f77bb73b11e11dfcb039a86ff1","role":"execution-control-plane"},
+    {"name":"vault-zeta","repository":"git@github.com:getkcoin-alt/itsmay.git","ref":"architecture/syncbond-v5","sha":"74240641ac55be5ed6be9d33ee5103600228b783","role":"identity-continuity-memory"},
+    {"name":"scrappy-forge","repository":"git@github.com:getkcoin-alt/scrappy_forge.git","ref":"architecture/syncbond-v5","sha":"a29a3f97db7580a99e564c8742744696e18385f8","role":"terminal-operator-and-evolution-runtime"},
+    {"name":"command-center","repository":"git@github.com:getkcoin-alt/karnveers-command-center.git","ref":"architecture/syncbond-v5","sha":"0523d6d5e021766d87e76f767d1293ab5728d56d","role":"human-governance-read-model"}
+  ],
+  "extensions": [
+    {"name":"power","repository":"git@github.com:getkcoin-alt/power.git","ref":"architecture/resource-intelligence-v1","sha":"6c021c096c5f3ce05e7dde54560fb4db84584e1b","role":"resource-intelligence-plane"}
+  ]
+}

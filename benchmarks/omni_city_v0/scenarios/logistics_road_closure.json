@@ -1,0 +1,50 @@
+{
+  "schema_version": "omni-city.v0",
+  "scenario_id": "logistics-road-001",
+  "title": "Medical delivery continuity after road closure",
+  "description": "A primary road closes while a medical shipment is in transit. Reroute the vehicle and complete delivery without exceeding budget.",
+  "budget": 6,
+  "entities": [
+    {"id": "road:primary", "kind": "road", "attributes": {"status": "closed"}},
+    {"id": "road:bypass", "kind": "road", "attributes": {"status": "open", "capacity": "available"}},
+    {"id": "vehicle:med-1", "kind": "vehicle", "attributes": {"route": "primary", "status": "blocked"}},
+    {"id": "hospital:west", "kind": "hospital", "attributes": {"shipment": "pending"}}
+  ],
+  "relations": [
+    {"source": "vehicle:med-1", "relation": "delivers_to", "target": "hospital:west"},
+    {"source": "road:bypass", "relation": "alternative_to", "target": "road:primary"}
+  ],
+  "goals": [
+    {"entity": "hospital:west", "attribute": "shipment", "equals": "delivered", "weight": 4},
+    {"entity": "vehicle:med-1", "attribute": "status", "equals": "arrived", "weight": 1}
+  ],
+  "actions": [
+    {
+      "id": "reroute-bypass",
+      "description": "Move the blocked medical vehicle onto the open bypass.",
+      "cost": 2,
+      "requires": [
+        {"entity": "road:primary", "attribute": "status", "equals": "closed"},
+        {"entity": "road:bypass", "attribute": "status", "equals": "open"},
+        {"entity": "vehicle:med-1", "attribute": "status", "equals": "blocked"}
+      ],
+      "effects": [
+        {"entity": "vehicle:med-1", "attribute": "route", "equals": "bypass"},
+        {"entity": "vehicle:med-1", "attribute": "status", "equals": "enroute"}
+      ]
+    },
+    {
+      "id": "complete-delivery",
+      "description": "Complete the medical shipment after the rerouted vehicle reaches the hospital.",
+      "cost": 2,
+      "requires": [
+        {"entity": "vehicle:med-1", "attribute": "route", "equals": "bypass"},
+        {"entity": "vehicle:med-1", "attribute": "status", "equals": "enroute"}
+      ],
+      "effects": [
+        {"entity": "vehicle:med-1", "attribute": "status", "equals": "arrived"},
+        {"entity": "hospital:west", "attribute": "shipment", "equals": "delivered"}
+      ]
+    }
+  ]
+}

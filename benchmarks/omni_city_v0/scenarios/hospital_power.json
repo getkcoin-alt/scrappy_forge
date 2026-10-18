@@ -1,0 +1,53 @@
+{
+  "schema_version": "omni-city.v0",
+  "scenario_id": "hospital-power-001",
+  "title": "Hospital power continuity after grid feeder loss",
+  "description": "A hospital loses its grid feeder. Stabilize critical power and preserve cold-storage service within budget.",
+  "budget": 7,
+  "entities": [
+    {"id": "grid:feeder-a", "kind": "energy_asset", "attributes": {"status": "offline", "isolated": false}},
+    {"id": "generator:hospital-1", "kind": "energy_asset", "attributes": {"status": "standby", "fuel": "sufficient"}},
+    {"id": "hospital:central", "kind": "hospital", "attributes": {"critical_power": "degraded"}},
+    {"id": "coldstore:vaccine", "kind": "building_system", "attributes": {"power": "at_risk"}}
+  ],
+  "relations": [
+    {"source": "grid:feeder-a", "relation": "supplies", "target": "hospital:central"},
+    {"source": "generator:hospital-1", "relation": "backup_for", "target": "hospital:central"},
+    {"source": "hospital:central", "relation": "hosts", "target": "coldstore:vaccine"}
+  ],
+  "goals": [
+    {"entity": "hospital:central", "attribute": "critical_power", "equals": "stable", "weight": 3},
+    {"entity": "coldstore:vaccine", "attribute": "power", "equals": "stable", "weight": 2},
+    {"entity": "grid:feeder-a", "attribute": "isolated", "equals": true, "weight": 1}
+  ],
+  "actions": [
+    {
+      "id": "isolate-feeder",
+      "description": "Isolate the failed feeder before energizing backup generation.",
+      "cost": 1,
+      "requires": [{"entity": "grid:feeder-a", "attribute": "status", "equals": "offline"}],
+      "effects": [{"entity": "grid:feeder-a", "attribute": "isolated", "equals": true}]
+    },
+    {
+      "id": "start-generator",
+      "description": "Start the hospital generator after feeder isolation is confirmed.",
+      "cost": 2,
+      "requires": [
+        {"entity": "grid:feeder-a", "attribute": "isolated", "equals": true},
+        {"entity": "generator:hospital-1", "attribute": "status", "equals": "standby"},
+        {"entity": "generator:hospital-1", "attribute": "fuel", "equals": "sufficient"}
+      ],
+      "effects": [
+        {"entity": "generator:hospital-1", "attribute": "status", "equals": "online"},
+        {"entity": "hospital:central", "attribute": "critical_power", "equals": "stable"}
+      ]
+    },
+    {
+      "id": "restore-coldstore",
+      "description": "Transfer vaccine cold storage to the stabilized critical-power bus.",
+      "cost": 1,
+      "requires": [{"entity": "hospital:central", "attribute": "critical_power", "equals": "stable"}],
+      "effects": [{"entity": "coldstore:vaccine", "attribute": "power", "equals": "stable"}]
+    }
+  ]
+}
