@@ -1,5 +1,22 @@
 # Changes
 
+## Unreleased — Scrappy Engine (SE-001) first slice
+
+- Added `scrappy_engine`: a durable mission state machine
+  (CREATED → ANALYZING → PLANNING → READY → RUNNING ⇄ VERIFYING → INTEGRATING → COMPLETED,
+  plus BLOCKED/FAILED/CANCELLED) on a transactional SQLite store with an append-only,
+  hash-chained audit log.
+- Added A0–A5 autonomy levels with per-role permission scopes, a tool gateway that
+  records every execution before it runs, and recovery that marks interrupted work uncertain.
+- Added model-independent architect/engineer/debugger/reviewer roles with JSON-Schema output
+  contracts, provider failover and diversity routing for review.
+- Added an evidence-only acceptance gate, git-worktree mission isolation, a patch artifact,
+  a commit on a mission branch, the `scrappy-engine` CLI and a token-protected mission API.
+
+Tests use a scripted provider: they verify the mechanism, not real-model ability.
+PostgreSQL, memory, skills, parallel agents and deployment are not implemented; see
+`docs/engine/SE-001.md`.
+
 ## 0.4.0
 
 - Added interactive masked model-key onboarding, fixed OpenRouter validation,

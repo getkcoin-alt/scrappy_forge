@@ -20,6 +20,7 @@ dev = ["pytest>=8,<10", "pytest-asyncio>=0.24,<2", "ruff==0.16.8", "httpx2==2.12
 forge = "scrappy_forge.cli:main"
 scrappy-forge = "scrappy_forge.cli:main"
 forge-hub = "forge_hub.app:main"
+scrappy-engine = "scrappy_engine.cli:main"
 
 [tool.setuptools.package-data]
 forge_hub = ["static/*", "install.sh.in"]

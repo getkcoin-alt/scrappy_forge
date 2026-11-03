@@ -41,6 +41,7 @@ flowchart TD
 | Key onboarding | `onboarding.py`, `credentials.py` | Masked entry, fixed key-validation endpoint, opt-in private local records |
 | World graph | `world.py` | Scoped collectors, stable entity IDs, bounded queries, freshness and observation deltas |
 | Forge account client | `account.py` | User-triggered login/signup/refresh/logout and backend owner commands; origin-bound tokens |
+| Engine missions | `scrappy_engine/` | Durable mission state machine, autonomy policy, tool gateway, role contracts, acceptance gate ([status](docs/engine/SE-001.md)) |
 | Public service | `forge_hub/app.py`, `forge_hub/auth.py` | Release wheel/installer, basic login panel, optional identity adapter, owner-only API |
 
 ## Local execution versus hosted control plane

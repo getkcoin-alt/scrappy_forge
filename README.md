@@ -60,6 +60,13 @@ local files/keys or disable offline local coding through this backend.
 | Distribution | Isolated uv install; Apple Silicon/Intel macOS and Linux/WSL targets; public wheel with SHA256 |
 | Accounts | Optional Supabase Auth adapter, verified user identity, refresh/logout and backend-only owner administration; disabled until configured |
 
+## Scrappy Engine (SE-001, experimental)
+
+`scrappy-engine` runs durable, model-independent engineering missions on top of
+Forge's execution substrate. It covers isolated worktrees, policy-gated tools, QA plus an
+independent reviewer, and an evidence-only acceptance gate. Status, limits and
+usage: [docs/engine/SE-001.md](docs/engine/SE-001.md).
+
 ## Install on macOS or Linux
 
 Self-hosted release service (available **after** VPS bootstrap, TLS and the first successful deploy): [Scrappy Forge](https://31-97-227-171.sslip.io).
