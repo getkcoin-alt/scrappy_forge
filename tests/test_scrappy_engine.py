@@ -7,9 +7,12 @@ All checks really execute (trusted-local) against real files.
 
 from __future__ import annotations
 
-import sqlite3
+import os
 import subprocess
 import sys
+import threading
+import uuid
+from urllib.parse import urlsplit, urlunsplit
 
 import pytest
 from starlette.testclient import TestClient
@@ -84,9 +87,25 @@ def auth_repo(tmp_path):
     return root
 
 
-@pytest.fixture
-def store(tmp_path):
-    return EngineStore(tmp_path / "engine" / "engine.db")
+PG_DSN = os.environ.get("SCRAPPY_ENGINE_TEST_PG_DSN")
+
+
+@pytest.fixture(params=["sqlite", "postgres"])
+def store(request, tmp_path):
+    if request.param == "sqlite":
+        yield EngineStore(tmp_path / "engine" / "engine.db")
+        return
+    if not PG_DSN:
+        pytest.skip("set SCRAPPY_ENGINE_TEST_PG_DSN to run the PostgreSQL store tests")
+    import psycopg
+
+    name = "se_test_" + uuid.uuid4().hex[:12]
+    with psycopg.connect(PG_DSN, autocommit=True) as admin:
+        admin.execute(f"CREATE DATABASE {name}")
+    parts = urlsplit(PG_DSN)
+    yield EngineStore(urlunsplit(parts._replace(path="/" + name)))
+    with psycopg.connect(PG_DSN, autocommit=True) as admin:
+        admin.execute(f"DROP DATABASE {name} WITH (FORCE)")
 
 
 def checks():
@@ -278,7 +297,7 @@ async def test_crash_mid_mission_resumes_from_durable_state(store, auth_repo, tm
     assert store.get_mission(mission["id"])["state"] == "RUNNING"
 
     # New process: fresh store handle and runner, recovery first.
-    restarted = EngineStore(store.path)
+    restarted = EngineStore(store.location)
     assert mission["id"] in restarted.recover()
     assert any(r["status"] == "interrupted" for r in restarted.agent_runs(mission["id"]))
     final = await runner_for(restarted, tmp_path, router([crash_once])).run(mission["id"])
@@ -378,12 +397,17 @@ def test_state_machine_and_append_only_audit(store):
         with pytest.raises(ForgeError):
             check_transition(current, target)
     store.audit(None, "probe", {})
-    conn = sqlite3.connect(store.path)
-    with pytest.raises(sqlite3.DatabaseError, match="append-only"):
-        conn.execute("UPDATE audit_events SET kind='x'")
-    with pytest.raises(sqlite3.DatabaseError, match="append-only"):
-        conn.execute("DELETE FROM audit_events")
-    conn.close()
+    statements = ["UPDATE audit_events SET kind='x'", "DELETE FROM audit_events"]
+    if store.backend == "postgres":
+        statements.append("TRUNCATE audit_events")
+    for statement in statements:
+        conn = store._connect()
+        try:
+            with pytest.raises(Exception, match="append-only"):
+                conn.execute(statement)
+        finally:
+            conn.close()
+    assert store.schema_versions() == ["0001_init"]
     assert store.verify_audit_chain()
 
 
@@ -453,3 +477,50 @@ def test_api_auth_idempotency_and_project_roots(store, auth_repo, tmp_path):
         cancelled = client.post(f"/v1/missions/{mission_id}/cancel", headers=auth).json()
         assert cancelled["state"] == "CANCELLED"
         assert client.get("/v1/missions/msn_missing", headers=auth).status_code == 404
+
+
+def test_concurrent_writers_keep_audit_chain_linear(store):
+    errors = []
+
+    def writer(n):
+        try:
+            for i in range(15):
+                store.audit(None, "concurrency_probe", {"writer": n, "i": i})
+        except Exception as exc:  # pragma: no cover - surfaced below
+            errors.append(exc)
+
+    threads = [threading.Thread(target=writer, args=(n,)) for n in range(4)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert not errors
+    assert store.verify_audit_chain()
+
+
+def test_reopening_store_does_not_reapply_migrations(store):
+    again = EngineStore(store.location)
+    assert again.schema_versions() == ["0001_init"]
+    assert again.verify_audit_chain()
+
+
+async def test_performance_routing_learns_from_recorded_outcomes(store, auth_repo, tmp_path):
+    flaky = ScriptedProvider("flaky", {"architect": [{"nonsense": True}]}, family="x")
+    steady = ScriptedProvider("steady", {"architect": [architect], "engineer": [right_fix]}, family="y")
+    critic = ScriptedProvider("critic", {"reviewer": [APPROVE]}, family="z")
+    rtr = ProviderRouter([flaky, steady, critic], {"architect": ["flaky", "steady"], "reviewer": ["critic"]})
+    for i in range(3):
+        mission, _ = store.create_mission(
+            make_spec(store, auth_repo, objective=f"Fix the auth bug, run {i}.")
+        )
+        rtr.failures.clear()  # simulate a fresh process: only the durable store remembers
+        assert (await runner_for(store, tmp_path, rtr).run(mission["id"]))["state"] == "COMPLETED"
+    stats = store.provider_stats()
+    assert stats[("flaky", "architect")] == {"succeeded": 0, "failed": 3}
+    rtr.failures.clear()
+    # Operator preference still says "flaky" first, but measured failure now outranks it:
+    # proven-good first, unmeasured (neutral prior) next, proven-bad last.
+    assert [p.name for p in rtr.order("architect", stats=stats)] == ["steady", "critic", "flaky"]
+    assert [p.name for p in rtr.order("architect")][:2] == ["flaky", "steady"]
+    entry = next(p for p in rtr.catalogue(stats) if p["name"] == "flaky")
+    assert entry["roles"]["architect"]["failure_rate"] == pytest.approx(0.8)

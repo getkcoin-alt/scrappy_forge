@@ -1,20 +1,27 @@
 """Durable system of record for missions.
 
-SQLite (WAL, foreign keys, BEGIN IMMEDIATE transactions) is the V1 local store. The
-schema mirrors the SE-001 table list so a PostgreSQL backend can implement the same
-methods; that backend does not exist yet.
+Two interchangeable backends implement the same store:
 
-Audit events are append-only: UPDATE/DELETE are rejected by triggers and every row
-carries a hash chained to the previous row, so silent edits are detectable.
+* SQLite (WAL, foreign keys, ``BEGIN IMMEDIATE``) for a single local machine.
+* PostgreSQL (``postgresql://`` DSN, needs the ``postgres`` extra) for a server
+  deployment. Writers are serialized with a transaction-scoped advisory lock, which
+  gives the same one-writer semantics as SQLite and keeps the audit hash chain linear.
+
+Schema changes are versioned SQL files under ``migrations/<backend>/`` recorded in
+``schema_migrations``. Audit events are append-only: UPDATE/DELETE (and TRUNCATE on
+PostgreSQL) are rejected by triggers, and every row carries a hash chained to the
+previous row, so silent edits are detectable.
 """
 
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import time
 import uuid
 from contextlib import contextmanager
+from importlib import resources
 from pathlib import Path
 
 from scrappy_forge.util import ForgeError, encoded, sha
@@ -22,104 +29,9 @@ from scrappy_forge.util import ForgeError, encoded, sha
 from .contracts import MissionSpec
 from .states import TERMINAL, MissionState, check_transition
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS projects (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    path TEXT NOT NULL UNIQUE,
-    created_at REAL NOT NULL
-);
-CREATE TABLE IF NOT EXISTS missions (
-    id TEXT PRIMARY KEY,
-    project_id TEXT NOT NULL REFERENCES projects(id),
-    state TEXT NOT NULL,
-    version INTEGER NOT NULL DEFAULT 1,
-    spec TEXT NOT NULL,
-    request_hash TEXT NOT NULL,
-    idempotency_key TEXT UNIQUE,
-    attempts INTEGER NOT NULL DEFAULT 0,
-    model_calls INTEGER NOT NULL DEFAULT 0,
-    cost_usd REAL NOT NULL DEFAULT 0,
-    cancel_requested INTEGER NOT NULL DEFAULT 0,
-    blocked_state TEXT,
-    reason TEXT,
-    workspace TEXT,
-    context TEXT NOT NULL DEFAULT '{}',
-    result TEXT,
-    created_at REAL NOT NULL,
-    updated_at REAL NOT NULL
-);
-CREATE TABLE IF NOT EXISTS tasks (
-    id TEXT PRIMARY KEY,
-    mission_id TEXT NOT NULL REFERENCES missions(id),
-    ordinal INTEGER NOT NULL,
-    title TEXT NOT NULL,
-    status TEXT NOT NULL,
-    UNIQUE (mission_id, ordinal)
-);
-CREATE TABLE IF NOT EXISTS agent_runs (
-    id TEXT PRIMARY KEY,
-    mission_id TEXT NOT NULL REFERENCES missions(id),
-    role TEXT NOT NULL,
-    provider TEXT NOT NULL,
-    attempt INTEGER NOT NULL,
-    status TEXT NOT NULL,
-    input_hash TEXT NOT NULL,
-    output TEXT,
-    error TEXT,
-    cost_usd REAL NOT NULL DEFAULT 0,
-    started_at REAL NOT NULL,
-    finished_at REAL
-);
-CREATE TABLE IF NOT EXISTS tool_calls (
-    execution_id TEXT PRIMARY KEY,
-    mission_id TEXT NOT NULL REFERENCES missions(id),
-    agent_role TEXT NOT NULL,
-    tool_id TEXT NOT NULL,
-    scope TEXT NOT NULL,
-    arguments TEXT NOT NULL,
-    idempotency_key TEXT NOT NULL,
-    status TEXT NOT NULL,
-    decision TEXT NOT NULL,
-    output TEXT,
-    evidence_hash TEXT,
-    started_at REAL NOT NULL,
-    finished_at REAL,
-    UNIQUE (mission_id, idempotency_key)
-);
-CREATE TABLE IF NOT EXISTS artifacts (
-    id TEXT PRIMARY KEY,
-    mission_id TEXT NOT NULL REFERENCES missions(id),
-    kind TEXT NOT NULL,
-    sha256 TEXT NOT NULL,
-    content TEXT NOT NULL,
-    created_at REAL NOT NULL
-);
-CREATE TABLE IF NOT EXISTS decisions (
-    id TEXT PRIMARY KEY,
-    mission_id TEXT NOT NULL REFERENCES missions(id),
-    role TEXT NOT NULL,
-    title TEXT NOT NULL,
-    rationale TEXT NOT NULL,
-    status TEXT NOT NULL,
-    created_at REAL NOT NULL
-);
-CREATE TABLE IF NOT EXISTS audit_events (
-    seq INTEGER PRIMARY KEY AUTOINCREMENT,
-    mission_id TEXT,
-    kind TEXT NOT NULL,
-    data TEXT NOT NULL,
-    at REAL NOT NULL,
-    prev_hash TEXT NOT NULL,
-    hash TEXT NOT NULL
-);
-CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON audit_events
-BEGIN SELECT RAISE(ABORT, 'audit_events is append-only'); END;
-CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit_events
-BEGIN SELECT RAISE(ABORT, 'audit_events is append-only'); END;
-"""
-
 GENESIS = "0" * 64
+WRITE_LOCK_KEY = 0x5C3A_7E01  # advisory lock id for PostgreSQL writers
+_NAMED = re.compile(r"(?<![:\w]):([A-Za-z_][A-Za-z0-9_]*)")
 
 
 def _new_id(prefix: str) -> str:
@@ -130,26 +42,124 @@ def _loads(value):
     return None if value is None else json.loads(value)
 
 
-class EngineStore:
-    def __init__(self, path: Path):
-        self.path = Path(path)
-        self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        with self._connect() as conn:
-            conn.executescript(SCHEMA)
+def migrations(backend: str) -> list[tuple[str, str]]:
+    folder = resources.files("scrappy_engine") / "migrations" / backend
+    files = sorted(item for item in folder.iterdir() if item.name.endswith(".sql"))
+    return [(item.name.removesuffix(".sql"), item.read_text(encoding="utf-8")) for item in files]
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.path, isolation_level=None, timeout=30)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-        conn.execute("PRAGMA synchronous=FULL")
-        return conn
+
+class _Conn:
+    """Uniform connection: ``?``/``:name`` placeholders, dict-like rows, explicit transactions."""
+
+    def __init__(self, raw, backend: str):
+        self.raw = raw
+        self.backend = backend
+
+    def execute(self, sql: str, params=()):
+        if self.backend == "postgres":
+            sql = _NAMED.sub(r"%(\1)s", sql.replace("?", "%s"))
+        return self.raw.execute(sql, params)
+
+    def close(self) -> None:
+        self.raw.close()
+
+
+class EngineStore:
+    def __init__(self, location: Path | str):
+        text = str(location)
+        if text.startswith(("postgresql://", "postgres://")):
+            try:
+                import psycopg  # noqa: F401
+            except ImportError as exc:
+                raise ForgeError("PostgreSQL store needs: pip install 'scrappy-forge[postgres]'") from exc
+            self.backend = "postgres"
+            self.location = text
+            self.path = None
+        else:
+            self.backend = "sqlite"
+            self.path = Path(location)
+            self.location = str(self.path)
+            self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self._migrate()
+
+    @property
+    def display_name(self) -> str:
+        if self.backend == "sqlite":
+            return f"sqlite:{self.path.name}"
+        return "postgres"  # never echo the DSN: it can carry a password
+
+    def _connect(self) -> _Conn:
+        if self.backend == "postgres":
+            import psycopg
+            from psycopg.rows import dict_row
+
+            try:
+                raw = psycopg.connect(
+                    self.location, autocommit=True, row_factory=dict_row, connect_timeout=10
+                )
+            except psycopg.Error as exc:
+                raise ForgeError("Could not connect to the PostgreSQL mission store") from exc
+            return _Conn(raw, "postgres")
+        raw = sqlite3.connect(self.path, isolation_level=None, timeout=30)
+        raw.row_factory = sqlite3.Row
+        raw.execute("PRAGMA journal_mode=WAL")
+        raw.execute("PRAGMA foreign_keys=ON")
+        raw.execute("PRAGMA synchronous=FULL")
+        return _Conn(raw, "sqlite")
+
+    def _begin(self, conn: _Conn) -> None:
+        if self.backend == "postgres":
+            conn.execute("BEGIN")
+            conn.execute(f"SELECT pg_advisory_xact_lock({WRITE_LOCK_KEY})")
+        else:
+            conn.execute("BEGIN IMMEDIATE")
+
+    def _migrate(self) -> None:
+        bootstrap = (
+            "CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at {t} NOT NULL)"
+        )
+        conn = self._connect()
+        try:
+            if self.backend == "postgres":
+                conn.execute(bootstrap.format(t="DOUBLE PRECISION"))
+                self._begin(conn)
+                try:
+                    done = {
+                        r["version"] for r in conn.execute("SELECT version FROM schema_migrations").fetchall()
+                    }
+                    for version, sql in migrations("postgres"):
+                        if version not in done:
+                            conn.raw.execute(sql)  # DDL is transactional on PostgreSQL
+                            conn.execute(
+                                "INSERT INTO schema_migrations VALUES (?, ?)", (version, time.time())
+                            )
+                    conn.execute("COMMIT")
+                except BaseException:
+                    conn.execute("ROLLBACK")
+                    raise
+            else:
+                conn.execute(bootstrap.format(t="REAL"))
+                done = {
+                    r["version"] for r in conn.execute("SELECT version FROM schema_migrations").fetchall()
+                }
+                for version, sql in migrations("sqlite"):
+                    if version not in done:
+                        # executescript commits on its own; migrations are written to be re-runnable.
+                        conn.raw.executescript(sql)
+                        conn.execute(
+                            "INSERT OR IGNORE INTO schema_migrations VALUES (?, ?)", (version, time.time())
+                        )
+        finally:
+            conn.close()
+
+    def schema_versions(self) -> list[str]:
+        return [r["version"] for r in self._read("SELECT version FROM schema_migrations ORDER BY version")]
 
     @contextmanager
     def tx(self):
         conn = self._connect()
         try:
-            conn.execute("BEGIN IMMEDIATE")
+            self._begin(conn)
             yield conn
             conn.execute("COMMIT")
         except BaseException:
@@ -158,7 +168,7 @@ class EngineStore:
         finally:
             conn.close()
 
-    def _read(self, sql: str, params=()) -> list[sqlite3.Row]:
+    def _read(self, sql: str, params=()) -> list:
         conn = self._connect()
         try:
             return conn.execute(sql, params).fetchall()
@@ -174,11 +184,12 @@ class EngineStore:
         at = time.time()
         body = encoded(data)
         digest = sha(encoded([prev, mission_id, kind, body, at]))
-        cur = conn.execute(
-            "INSERT INTO audit_events (mission_id, kind, data, at, prev_hash, hash) VALUES (?,?,?,?,?,?)",
+        row = conn.execute(
+            "INSERT INTO audit_events (mission_id, kind, data, at, prev_hash, hash) VALUES (?,?,?,?,?,?)"
+            " RETURNING seq",
             (mission_id, kind, body, at, prev, digest),
-        )
-        return int(cur.lastrowid)
+        ).fetchone()
+        return int(row["seq"])
 
     def audit(self, mission_id: str | None, kind: str, data: dict) -> int:
         with self.tx() as conn:
@@ -448,6 +459,18 @@ class EngineStore:
     def agent_runs(self, mission_id: str) -> list[dict]:
         rows = self._read("SELECT * FROM agent_runs WHERE mission_id=? ORDER BY started_at", (mission_id,))
         return [{**dict(r), "output": _loads(r["output"])} for r in rows]
+
+    def provider_stats(self) -> dict[tuple[str, str], dict]:
+        """Recorded outcomes per (provider, role) across all missions: performance routing input."""
+        rows = self._read(
+            "SELECT provider, role, status, COUNT(*) AS n FROM agent_runs"
+            " WHERE status IN ('succeeded', 'failed') GROUP BY provider, role, status"
+        )
+        stats: dict[tuple[str, str], dict] = {}
+        for r in rows:
+            entry = stats.setdefault((r["provider"], r["role"]), {"succeeded": 0, "failed": 0})
+            entry[r["status"]] = int(r["n"])
+        return stats
 
     # ---- tool calls --------------------------------------------------------
 

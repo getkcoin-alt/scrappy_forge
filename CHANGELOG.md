@@ -13,8 +13,13 @@
 - Added an evidence-only acceptance gate, git-worktree mission isolation, a patch artifact,
   a commit on a mission branch, the `scrappy-engine` CLI and a token-protected mission API.
 
+- Added a PostgreSQL store backend (same interface and tests as SQLite), versioned SQL
+  migrations, a loopback-only Postgres compose file and a CI job against PostgreSQL 16.
+- Added performance routing: providers are ranked per role by failure rate recorded
+  in `agent_runs`, with per-role stats in `/v1/models`.
+
 Tests use a scripted provider: they verify the mechanism, not real-model ability.
-PostgreSQL, memory, skills, parallel agents and deployment are not implemented; see
+Memory, skills, parallel agents and deployment are not implemented; see
 `docs/engine/SE-001.md`.
 
 ## 0.4.0

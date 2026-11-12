@@ -118,7 +118,8 @@ class MissionRunner:
     async def _agent(self, mission_id: str, role_name: str, brief: dict, *, avoid_family=None):
         role = ROLES[role_name]
         errors = []
-        for provider in self.router.order(role_name, avoid_family=avoid_family):
+        stats = self.store.provider_stats()
+        for provider in self.router.order(role_name, avoid_family=avoid_family, stats=stats):
             mission = self.store.get_mission(mission_id)
             limits = self._spec(mission).constraints
             if mission["model_calls"] >= limits.max_model_calls:

@@ -19,6 +19,27 @@ jobs:
       - run: ruff format --check src tests examples validation
       - run: pytest -q
       - run: python validation/terminal_smoke.py
+  engine-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: engine
+          POSTGRES_PASSWORD: engine
+          POSTGRES_DB: engine
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U engine" --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      SCRAPPY_ENGINE_TEST_PG_DSN: postgresql://engine:engine@127.0.0.1:5432/engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev,auth,server,postgres]'
+      - run: pytest -q tests/test_scrappy_engine.py
   macos:
     runs-on: macos-latest
     steps:

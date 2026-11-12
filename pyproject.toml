@@ -13,6 +13,7 @@ dependencies = ["requests>=2.32.3,<3", "httpx>=0.28.1,<0.29", "jsonschema>=4.23,
 
 [project.optional-dependencies]
 auth = ["cryptography>=50.0.1,<51"]
+postgres = ["psycopg[binary]>=3.2,<4"]
 server = ["starlette==1.6.0", "uvicorn==0.52.4"]
 dev = ["pytest>=8,<10", "pytest-asyncio>=0.24,<2", "ruff==0.16.8", "httpx2==2.12.0"]
 
@@ -24,6 +25,7 @@ scrappy-engine = "scrappy_engine.cli:main"
 
 [tool.setuptools.package-data]
 forge_hub = ["static/*", "install.sh.in"]
+scrappy_engine = ["migrations/*/*.sql"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

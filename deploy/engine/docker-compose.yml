@@ -1,0 +1,29 @@
+# PostgreSQL system of record for Scrappy Engine.
+#
+# The engine itself runs on the host, not in this compose project: it needs the host
+# Docker daemon to start sandboxed check containers, and mounting the Docker socket into
+# a container would hand it root on the host. Bind Postgres to loopback only.
+#
+#   export SCRAPPY_PG_PASSWORD=$(openssl rand -hex 24)
+#   docker compose -f deploy/engine/docker-compose.yml up -d
+#   export SCRAPPY_ENGINE_DATABASE_URL="postgresql://scrappy:${SCRAPPY_PG_PASSWORD}@127.0.0.1:5433/scrappy_engine"
+#   scrappy-engine list        # applies migrations on first use
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: scrappy
+      POSTGRES_DB: scrappy_engine
+      POSTGRES_PASSWORD: ${SCRAPPY_PG_PASSWORD:?set SCRAPPY_PG_PASSWORD}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - scrappy-engine-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scrappy -d scrappy_engine"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+volumes:
+  scrappy-engine-pg:

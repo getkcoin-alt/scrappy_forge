@@ -168,27 +168,60 @@ class ProviderRouter:
         self.preferences = preferences or {}
         self.failures: dict[str, int] = {}
 
-    def order(self, role: str, *, avoid_family: str | None = None) -> list[IntelligenceProvider]:
+    MIN_SAMPLES = 3
+
+    @classmethod
+    def failure_rate(cls, stats: dict | None, provider: str, role: str) -> float | None:
+        """Laplace-smoothed failure rate for a provider on a role, from recorded agent runs.
+
+        None until MIN_SAMPLES outcomes exist: a provider is not judged on one bad call.
+        """
+        counts = (stats or {}).get((provider, role))
+        if not counts:
+            return None
+        total = counts["succeeded"] + counts["failed"]
+        if total < cls.MIN_SAMPLES:
+            return None
+        return (counts["failed"] + 1) / (total + 2)
+
+    def order(
+        self, role: str, *, avoid_family: str | None = None, stats: dict | None = None
+    ) -> list[IntelligenceProvider]:
+        """Rank providers for a role.
+
+        Keys, in priority order: diversity (avoid the implementer's family for review),
+        failures in this process, measured failure rate for this role (unmeasured
+        providers get a neutral 0.5 prior), then the operator's preference order.
+        """
         names = list(self.preferences.get(role) or self.providers)
         names += [n for n in self.providers if n not in names]
-        ranked = sorted(
-            (self.providers[n] for n in names if n in self.providers),
-            key=lambda p: (
+
+        def key(p):
+            rate = self.failure_rate(stats, p.name, role)
+            return (
                 avoid_family is not None and p.family == avoid_family,
                 self.failures.get(p.name, 0),
+                0.5 if rate is None else round(rate, 3),
                 names.index(p.name),
-            ),
-        )
-        return ranked
+            )
+
+        return sorted((self.providers[n] for n in names if n in self.providers), key=key)
 
     def record_failure(self, name: str) -> None:
         self.failures[name] = self.failures.get(name, 0) + 1
 
-    def catalogue(self) -> list[dict]:
-        return [
-            {"name": p.name, "family": p.family, "failures": self.failures.get(p.name, 0)}
-            for p in self.providers.values()
-        ]
+    def catalogue(self, stats: dict | None = None) -> list[dict]:
+        result = []
+        for p in self.providers.values():
+            roles = {
+                role: {**counts, "failure_rate": self.failure_rate(stats, p.name, role)}
+                for (name, role), counts in sorted((stats or {}).items())
+                if name == p.name
+            }
+            result.append(
+                {"name": p.name, "family": p.family, "failures": self.failures.get(p.name, 0), "roles": roles}
+            )
+        return result
 
 
 def check_output(role: Role, output: dict) -> dict:

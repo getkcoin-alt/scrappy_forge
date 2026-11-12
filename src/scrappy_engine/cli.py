@@ -99,7 +99,7 @@ def main(argv=None) -> int:
     serve.add_argument("--review-model")
     args = parser.parse_args(argv)
 
-    store = EngineStore(engine_home() / "engine.db")
+    store = EngineStore(os.environ.get("SCRAPPY_ENGINE_DATABASE_URL") or engine_home() / "engine.db")
     try:
         if args.command == "run":
             return asyncio.run(_run(args, store))

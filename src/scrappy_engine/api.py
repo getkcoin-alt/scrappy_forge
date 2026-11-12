@@ -95,7 +95,7 @@ def create_app(runner: MissionRunner, *, token: str, project_roots: list[Path], 
 
     async def health(_request):
         return JSONResponse(
-            {"status": "ok", "store": str(store.path.name), "audit_chain_valid": store.verify_audit_chain()}
+            {"status": "ok", "store": store.display_name, "audit_chain_valid": store.verify_audit_chain()}
         )
 
     async def connect_project(request):
@@ -178,7 +178,7 @@ def create_app(runner: MissionRunner, *, token: str, project_roots: list[Path], 
         )
 
     async def models(_request):
-        return JSONResponse({"providers": runner.router.catalogue()})
+        return JSONResponse({"providers": runner.router.catalogue(store.provider_stats())})
 
     @asynccontextmanager
     async def lifespan(_app):
