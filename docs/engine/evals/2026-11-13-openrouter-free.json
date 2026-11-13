@@ -1,0 +1,216 @@
+{
+  "models": {
+    "builder": "cohere/north-mini-code:free",
+    "reviewer": "baidu/ernie-5.5-flash-preview:free",
+    "fallback": "recursive/flint-v1.0:free"
+  },
+  "results": [
+    {
+      "task": "auth",
+      "state": "BLOCKED",
+      "reason": "no provider produced a valid engineer output: fallback: Invalid or incomplete provider response; no tools executed; reviewer: Invalid or incomplete provider response; no tools executed; builder: Invalid or incomplete provider response; no tools executed; fallback: Invalid or incomplete provider response; no tools executed; reviewer: Invalid or incomplete provider response; no tools executed; builder: Invalid or incomplete provider response; no tools executed",
+      "attempts": 1,
+      "model_calls": 10,
+      "failed_model_calls": 7,
+      "model_errors": [
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed"
+      ],
+      "providers_used": [
+        "architect:fallback",
+        "debugger:fallback",
+        "engineer:fallback"
+      ],
+      "cost_usd": 0.0,
+      "seconds": 308.3,
+      "reproduced": true,
+      "final_checks": null,
+      "review": null,
+      "attempt_gate_failures": [
+        [
+          "check heldout failed",
+          "no independent review"
+        ]
+      ],
+      "audit_chain_valid": true,
+      "patch": null,
+      "run": 0
+    },
+    {
+      "task": "pagination",
+      "state": "BLOCKED",
+      "reason": "no provider produced a valid engineer output: fallback: Invalid or incomplete provider response; no tools executed; reviewer: Invalid or incomplete provider response; no tools executed; builder: Invalid or incomplete provider response; no tools executed; fallback: Invalid or incomplete provider response; no tools executed; reviewer: Invalid or incomplete provider response; no tools executed; builder: Invalid or incomplete provider response; no tools executed",
+      "attempts": 1,
+      "model_calls": 10,
+      "failed_model_calls": 7,
+      "model_errors": [
+        "Provider connection failed; ambiguous requests are not automatically replayed",
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed"
+      ],
+      "providers_used": [
+        "architect:fallback",
+        "debugger:fallback",
+        "engineer:fallback"
+      ],
+      "cost_usd": 0.0,
+      "seconds": 339.6,
+      "reproduced": true,
+      "final_checks": null,
+      "review": null,
+      "attempt_gate_failures": [
+        [
+          "check heldout failed",
+          "no independent review"
+        ]
+      ],
+      "audit_chain_valid": true,
+      "patch": null,
+      "run": 0
+    },
+    {
+      "task": "duration",
+      "state": "BLOCKED",
+      "reason": "no provider produced a valid engineer output: reviewer: Invalid or incomplete provider response; no tools executed; builder: Invalid or incomplete provider response; no tools executed; fallback: Invalid or incomplete provider response; no tools executed; reviewer: Invalid or incomplete provider response; no tools executed; builder: Model reply JSON was malformed (Expecting ',' delimiter at char 4155); fallback: Invalid or incomplete provider response; no tools executed",
+      "attempts": 1,
+      "model_calls": 11,
+      "failed_model_calls": 8,
+      "model_errors": [
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed"
+      ],
+      "providers_used": [
+        "architect:builder",
+        "debugger:reviewer",
+        "engineer:reviewer"
+      ],
+      "cost_usd": 0.0,
+      "seconds": 316.6,
+      "reproduced": true,
+      "final_checks": null,
+      "review": null,
+      "attempt_gate_failures": [
+        [
+          "check heldout failed",
+          "no independent review"
+        ]
+      ],
+      "audit_chain_valid": true,
+      "patch": null,
+      "run": 0
+    },
+    {
+      "task": "auth",
+      "state": "FAILED",
+      "reason": "retry budget exhausted: check heldout failed; no independent review",
+      "attempts": 3,
+      "model_calls": 12,
+      "failed_model_calls": 6,
+      "model_errors": [
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed",
+        "Invalid or incomplete provider response; no tools executed"
+      ],
+      "providers_used": [
+        "architect:builder",
+        "debugger:fallback",
+        "debugger:reviewer",
+        "engineer:builder",
+        "engineer:fallback",
+        "engineer:reviewer"
+      ],
+      "cost_usd": 0.0,
+      "seconds": 247.0,
+      "reproduced": true,
+      "final_checks": null,
+      "review": null,
+      "attempt_gate_failures": [
+        [
+          "check heldout failed",
+          "no independent review"
+        ],
+        [
+          "check heldout failed",
+          "no independent review"
+        ],
+        [
+          "check heldout failed",
+          "no independent review"
+        ]
+      ],
+      "audit_chain_valid": true,
+      "patch": null,
+      "run": 1
+    },
+    {
+      "task": "pagination",
+      "state": "BLOCKED",
+      "reason": "no provider produced a valid engineer output: reviewer: Provider unavailable (HTTP 429); resume later; builder: Provider unavailable (HTTP 429); resume later; fallback: Provider unavailable (HTTP 429); resume later; reviewer: Provider unavailable (HTTP 429); resume later; builder: Provider unavailable (HTTP 429); resume later; fallback: Provider unavailable (HTTP 429); resume later",
+      "attempts": 0,
+      "model_calls": 9,
+      "failed_model_calls": 8,
+      "model_errors": [
+        "Provider unavailable (HTTP 429); resume later",
+        "Provider unavailable (HTTP 429); resume later",
+        "Provider unavailable (HTTP 429); resume later",
+        "Provider unavailable (HTTP 429); resume later",
+        "Provider unavailable (HTTP 429); resume later",
+        "Provider unavailable (HTTP 429); resume later"
+      ],
+      "providers_used": [
+        "architect:reviewer"
+      ],
+      "cost_usd": 0.0,
+      "seconds": 57.4,
+      "reproduced": true,
+      "final_checks": null,
+      "review": null,
+      "attempt_gate_failures": [],
+      "audit_chain_valid": true,
+      "patch": null,
+      "run": 1
+    },
+    {
+      "task": "duration",
+      "state": "BLOCKED",
+      "reason": "no provider produced a valid architect output: builder: Provider unavailable (HTTP 429); resume later; fallback: Provider unavailable (HTTP 429); resume later; reviewer: Provider unavailable (HTTP 429); resume later; builder: Provider unavailable (HTTP 429); resume later; fallback: Provider unavailable (HTTP 429); resume later; reviewer: Provider unavailable (HTTP 429); resume later",
+      "attempts": 0,
+      "model_calls": 6,
+      "failed_model_calls": 6,
+      "model_errors": [
+        "Provider unavailable (HTTP 429); resume later",
+        "Provider unavailable (HTTP 429); resume later",
+        "Provider unavailable (HTTP 429); resume later",
+        "Provider unavailable (HTTP 429); resume later",
+        "Provider unavailable (HTTP 429); resume later",
+        "Provider unavailable (HTTP 429); resume later"
+      ],
+      "providers_used": [],
+      "cost_usd": 0.0,
+      "seconds": 29.5,
+      "reproduced": true,
+      "final_checks": null,
+      "review": null,
+      "attempt_gate_failures": [],
+      "audit_chain_valid": true,
+      "patch": null,
+      "run": 1
+    }
+  ],
+  "completed": 0,
+  "total": 6
+}

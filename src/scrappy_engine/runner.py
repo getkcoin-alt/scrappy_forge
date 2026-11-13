@@ -314,6 +314,9 @@ class MissionRunner:
                 edit_errors.append(f"{path}: {exc}")
         ctx["engineer_provider"] = provider.name
         ctx["engineer_family"] = provider.family
+        # Every family that has written code in this mission; a reviewer from any of them
+        # is reviewing (partly) its own work.
+        ctx["engineer_families"] = sorted({*ctx.get("engineer_families", []), provider.family})
         ctx["current"] = {"attempt": attempt, "summary": change["summary"], "edit_errors": edit_errors}
         self.store.set_task_status(mission["id"], "implemented")
         return (
@@ -340,7 +343,10 @@ class MissionRunner:
                 "implementer_summary": ctx["current"]["summary"],
             }
             review, reviewer = await self._agent(
-                mission["id"], "reviewer", brief, avoid_family=ctx.get("engineer_family")
+                mission["id"],
+                "reviewer",
+                brief,
+                avoid_family=ctx.get("engineer_families") or ctx.get("engineer_family"),
             )
         if tree_hash(ws.work) != tree:
             raise ForgeError("workspace changed during verification")
@@ -359,7 +365,10 @@ class MissionRunner:
             "checks": checks,
             "review": review,
             "reviewer_provider": reviewer.name if reviewer else None,
-            "reviewer_independent_family": bool(reviewer and reviewer.family != ctx.get("engineer_family")),
+            "reviewer_independent_family": bool(
+                reviewer
+                and reviewer.family not in (ctx.get("engineer_families") or [ctx.get("engineer_family")])
+            ),
             "gate_failures": reasons,
             "tree_hash": tree,
         }

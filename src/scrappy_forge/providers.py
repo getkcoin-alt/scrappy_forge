@@ -50,7 +50,9 @@ def parse_response(data):
         message = {k: m[k] for k in ("role", "content", "tool_calls", "reasoning_details") if k in m}
         return {"message": message, "model": data.get("model"), "usage": data.get("usage") or {}}
     except (AttributeError, KeyError, IndexError, TypeError, ValueError) as exc:
-        raise ForgeError("Invalid or incomplete provider response; no tools executed") from exc
+        # The reason is a fixed parser label or a missing key name, never response content.
+        reason = f"{type(exc).__name__}: {str(exc)[:80]}"
+        raise ForgeError(f"Invalid or incomplete provider response ({reason}); no tools executed") from exc
 
 
 class ChatProvider:

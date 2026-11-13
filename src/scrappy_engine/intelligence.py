@@ -184,9 +184,7 @@ class ProviderRouter:
             return None
         return (counts["failed"] + 1) / (total + 2)
 
-    def order(
-        self, role: str, *, avoid_family: str | None = None, stats: dict | None = None
-    ) -> list[IntelligenceProvider]:
+    def order(self, role: str, *, avoid_family=None, stats: dict | None = None) -> list[IntelligenceProvider]:
         """Rank providers for a role.
 
         Keys, in priority order: diversity (avoid the implementer's family for review),
@@ -195,11 +193,15 @@ class ProviderRouter:
         """
         names = list(self.preferences.get(role) or self.providers)
         names += [n for n in self.providers if n not in names]
+        if isinstance(avoid_family, str):
+            avoid = {avoid_family}
+        else:
+            avoid = set(avoid_family or ())
 
         def key(p):
             rate = self.failure_rate(stats, p.name, role)
             return (
-                avoid_family is not None and p.family == avoid_family,
+                p.family in avoid,
                 self.failures.get(p.name, 0),
                 0.5 if rate is None else round(rate, 3),
                 names.index(p.name),

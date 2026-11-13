@@ -547,3 +547,28 @@ async def test_transient_provider_failure_recovers_in_second_round(store, auth_r
         "failed",
         "succeeded",
     ]
+
+
+async def test_reviewer_that_also_wrote_code_is_not_independent(store, auth_repo, tmp_path):
+    # Attempt 1 is written by family "fam-b" (the critic's family), attempt 2 by "fam-a".
+    a = ScriptedProvider(
+        "a", {"architect": [architect], "engineer": [right_fix], "debugger": [DEBUG]}, family="fam-a"
+    )
+    b = ScriptedProvider("b", {"engineer": [WRONG_FIX], "reviewer": [APPROVE]}, family="fam-b")
+    rtr = ProviderRouter([a, b], {"engineer": ["b", "a"], "reviewer": ["b", "a"]})
+    rtr_order = rtr.order
+
+    def order(role, **kw):
+        ranked = rtr_order(role, **kw)
+        if role == "engineer":  # b writes once, then a takes over
+            used = sum(1 for r in store.agent_runs(mission["id"]) if r["role"] == "engineer")
+            return [p for p in ranked if p.name == ("b" if used == 0 else "a")]
+        return ranked
+
+    rtr.order = order
+    mission, _ = store.create_mission(make_spec(store, auth_repo))
+    final = await runner_for(store, tmp_path, rtr).run(mission["id"])
+    assert final["state"] == "COMPLETED"
+    # Both families wrote code, so no reviewer is independent; the report must say so.
+    assert final["context"]["engineer_families"] == ["fam-a", "fam-b"]
+    assert any("same model family" in item for item in final["result"]["limitations"])
