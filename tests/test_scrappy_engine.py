@@ -210,7 +210,11 @@ def router(engineer_script, reviewer=APPROVE):
 
 def runner_for(store, tmp_path, rtr):
     return MissionRunner(
-        store, rtr, home=tmp_path / "engine", runner_factory=lambda env: Runner(mode="trusted-local")
+        store,
+        rtr,
+        home=tmp_path / "engine",
+        runner_factory=lambda env: Runner(mode="trusted-local"),
+        round_delay=0,
     )
 
 
@@ -524,3 +528,22 @@ async def test_performance_routing_learns_from_recorded_outcomes(store, auth_rep
     assert [p.name for p in rtr.order("architect")][:2] == ["flaky", "steady"]
     entry = next(p for p in rtr.catalogue(stats) if p["name"] == "flaky")
     assert entry["roles"]["architect"]["failure_rate"] == pytest.approx(0.8)
+
+
+async def test_transient_provider_failure_recovers_in_second_round(store, auth_repo, tmp_path):
+    # One provider whose first architect reply is invalid (like a 429 or truncated JSON).
+    solo = ScriptedProvider("solo", {"architect": [{"nonsense": 1}, architect], "engineer": [right_fix]})
+    critic = ScriptedProvider("critic", {"reviewer": [APPROVE]}, family="z")
+    rtr = ProviderRouter([solo, critic], {"architect": ["solo"], "reviewer": ["critic"]})
+    rtr_order = rtr.order
+    # Keep the critic out of the architect role so the retry must come from round two.
+    rtr.order = lambda role, **kw: [
+        p for p in rtr_order(role, **kw) if role == "reviewer" or p.name == "solo"
+    ]
+    mission, _ = store.create_mission(make_spec(store, auth_repo))
+    final = await runner_for(store, tmp_path, rtr).run(mission["id"])
+    assert final["state"] == "COMPLETED"
+    assert [r["status"] for r in store.agent_runs(mission["id"]) if r["role"] == "architect"] == [
+        "failed",
+        "succeeded",
+    ]

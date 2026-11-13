@@ -12,6 +12,7 @@ the mission may complete.
 
 from __future__ import annotations
 
+import asyncio
 import re
 from pathlib import Path
 
@@ -94,6 +95,8 @@ class MissionRunner:
         home: Path,
         runner_factory=None,
         max_steps: int = 60,
+        provider_rounds: int = 2,
+        round_delay: float = 8.0,
     ):
         self.store = store
         self.router = router
@@ -102,6 +105,8 @@ class MissionRunner:
             lambda env: Runner(mode="trusted-local" if env == "trusted-local" else "docker")
         )
         self.max_steps = max_steps
+        self.provider_rounds = max(1, provider_rounds)
+        self.round_delay = round_delay
 
     # ---- helpers -----------------------------------------------------------
 
@@ -118,31 +123,39 @@ class MissionRunner:
     async def _agent(self, mission_id: str, role_name: str, brief: dict, *, avoid_family=None):
         role = ROLES[role_name]
         errors = []
-        stats = self.store.provider_stats()
-        for provider in self.router.order(role_name, avoid_family=avoid_family, stats=stats):
-            mission = self.store.get_mission(mission_id)
-            limits = self._spec(mission).constraints
-            if mission["model_calls"] >= limits.max_model_calls:
-                raise BudgetExhausted(f"model call budget exhausted ({limits.max_model_calls})")
-            if mission["cost_usd"] >= limits.budget_limit_usd and limits.budget_limit_usd > 0:
-                raise BudgetExhausted(f"monetary budget exhausted (${limits.budget_limit_usd})")
-            run_id = self.store.start_agent_run(
-                mission_id, role_name, provider.name, mission["attempts"] + 1, sha(encoded(brief))
-            )
-            try:
-                reply = await provider.complete(role, brief)
-                output = check_output(role, reply.output)
-            except (ForgeError, OSError, TimeoutError) as exc:
-                self.store.finish_agent_run(run_id, status="failed", error=str(exc)[:2000])
-                self.store.charge(mission_id, model_calls=1)
-                self.router.record_failure(provider.name)
-                errors.append(f"{provider.name}: {exc}")
-                continue
-            self.store.finish_agent_run(run_id, status="succeeded", output=output, cost_usd=reply.cost_usd)
-            self.store.charge(mission_id, model_calls=1, cost_usd=reply.cost_usd)
-            return output, provider
+        # Free and shared endpoints fail transiently (429, upstream errors, truncated JSON).
+        # Every provider gets a bounded number of rounds, each attempt charged to the budget,
+        # before the mission is BLOCKED for an operator.
+        for round_no in range(self.provider_rounds):
+            if round_no:
+                await asyncio.sleep(self.round_delay * round_no)
+            stats = self.store.provider_stats()
+            for provider in self.router.order(role_name, avoid_family=avoid_family, stats=stats):
+                mission = self.store.get_mission(mission_id)
+                limits = self._spec(mission).constraints
+                if mission["model_calls"] >= limits.max_model_calls:
+                    raise BudgetExhausted(f"model call budget exhausted ({limits.max_model_calls})")
+                if mission["cost_usd"] >= limits.budget_limit_usd and limits.budget_limit_usd > 0:
+                    raise BudgetExhausted(f"monetary budget exhausted (${limits.budget_limit_usd})")
+                run_id = self.store.start_agent_run(
+                    mission_id, role_name, provider.name, mission["attempts"] + 1, sha(encoded(brief))
+                )
+                try:
+                    reply = await provider.complete(role, brief)
+                    output = check_output(role, reply.output)
+                except (ForgeError, OSError, TimeoutError) as exc:
+                    self.store.finish_agent_run(run_id, status="failed", error=str(exc)[:2000])
+                    self.store.charge(mission_id, model_calls=1)
+                    self.router.record_failure(provider.name)
+                    errors.append(f"{provider.name}: {exc}")
+                    continue
+                self.store.finish_agent_run(
+                    run_id, status="succeeded", output=output, cost_usd=reply.cost_usd
+                )
+                self.store.charge(mission_id, model_calls=1, cost_usd=reply.cost_usd)
+                return output, provider
         raise ProvidersUnavailable(
-            f"no provider produced a valid {role_name} output: " + "; ".join(errors)[:1500]
+            f"no provider produced a valid {role_name} output: " + "; ".join(errors)[-1500:]
         )
 
     async def _read_files(self, gw: ToolGateway, role: str, paths, budget=MAX_BRIEF_BYTES) -> dict[str, str]:

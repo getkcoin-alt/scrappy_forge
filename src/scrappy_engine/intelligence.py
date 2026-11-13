@@ -112,7 +112,7 @@ def extract_json(text: str) -> dict:
     try:
         value = json.loads(text[start : end + 1])
     except json.JSONDecodeError as exc:
-        raise ForgeError("Model reply JSON was malformed") from exc
+        raise ForgeError(f"Model reply JSON was malformed ({exc.msg} at char {exc.pos})") from exc
     if not isinstance(value, dict):
         raise ForgeError("Model reply must be a JSON object")
     return value
