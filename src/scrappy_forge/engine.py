@@ -460,7 +460,10 @@ class Engine:
             self.emit("error", str(exc))
         finally:
             self.state["elapsed_seconds"] = self.state.get("elapsed_seconds", 0) + time.monotonic() - started
-            self.consolidate_mission_memory()
+            try:
+                self.consolidate_mission_memory()
+            except Exception as exc:
+                self.audit("memory_consolidation_failed", {"error": str(exc)[:400]})
             self.save()
             self.export()
         return self.state
