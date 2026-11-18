@@ -95,7 +95,7 @@ class ContextManager:
         )
         return True
 
-    def build(self, state, system: str, tools: list[dict], notes: list[dict], project_instructions=""):
+    def build(\n        self, state, system: str, tools: list[dict], notes: list[dict], project_instructions="", intelligence=None\n    ):
         def assemble():
             messages = [{"role": "system", "content": system}]
             task = {
@@ -105,7 +105,7 @@ class ContextManager:
                 "workspace": state["workspace"],
                 "handoff_untrusted": state.get("handoff", ""),
                 "recent_observations_untrusted": state.get("observations", [])[-6:],
-                "retrieved_memory_untrusted": notes,
+                "retrieved_memory_untrusted": notes,\n                "compiled_intelligence_untrusted": intelligence or {},
                 "repository_conventions_untrusted": project_instructions[:6000],
             }
             messages.append(
