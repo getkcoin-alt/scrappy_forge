@@ -82,8 +82,6 @@ def test_compiled_intelligence_survives_database_reopen(settings, repo):
             state={"status": "working", "steps": 1},
             memories=[hit.item for hit in hits],
         )
-        assert capsule["goals"][0]["content"] == (
-            "Scrappy must preserve mission continuity across restarts"
-        )
+        assert capsule["goals"][0]["content"] == ("Scrappy must preserve mission continuity across restarts")
     finally:
         reopened.close()
