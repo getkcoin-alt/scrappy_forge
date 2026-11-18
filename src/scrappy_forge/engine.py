@@ -9,7 +9,8 @@ import uuid
 from pathlib import Path
 
 from .builtins import register_builtins
-from .context import ContextManager, TokenBudget\nfrom .compiled_intelligence import CompiledIntelligence
+from .context import ContextManager, TokenBudget
+from .compiled_intelligence import CompiledIntelligence
 from .execution import Runner
 from .extensions import Skills, register_plugins
 from .mcp_client import MCPManager
