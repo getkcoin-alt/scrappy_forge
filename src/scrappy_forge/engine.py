@@ -486,11 +486,11 @@ class Engine:
             return []
         events = []
         cursor = 0
-        while len(events) < 1000:
+        while True:
             batch = self.store.events(self.state["id"], after=cursor, limit=50)
             if not batch:
                 break
-            events.extend(batch)
+            events = (events + batch)[-200:]
             cursor = batch[-1]["id"]
             if len(batch) < 50:
                 break
