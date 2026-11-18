@@ -501,11 +501,7 @@ class Engine:
             verified = self.state.get("verified_hash") == tree_hash(self.workspace.root)
         except (ForgeError, OSError):
             pass
-        created = self.memory.consolidate(
-            events[-200:],
-            mission_id=self.state["id"],
-            verified=verified,
-        )
+        created = self.memory.consolidate(events[-200:], mission_id=self.state["id"], verified=verified)
         if created:
             self.audit(
                 "memory_consolidated",
