@@ -299,7 +299,7 @@ class VaultMemory:
                         self.add(
                             f"Mission {mission_id}: verification '{name}' passed.",
                             memory_class=MemoryClass.EPISODIC,
-                            provenance={"mission_id": mission_id, "event": kind},
+                            provenance=provenance,
                             confidence=0.95,
                             origin="controller",
                         )
