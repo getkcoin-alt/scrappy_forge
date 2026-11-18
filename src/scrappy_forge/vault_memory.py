@@ -260,9 +260,16 @@ class VaultMemory:
         correction and explicit memory-candidate events are eligible.
         """
         created = []
-        for event in events[-200:]:
+        for index, event in enumerate(events[-200:]):
             kind = event.get("kind")
             data = event.get("data") or {}
+            provenance = {
+                "mission_id": mission_id,
+                "event": kind,
+                "event_id": event.get("id", index),
+            }
+            if self.store.memory_item_exists_by_provenance(self.project, provenance):
+                continue
             if kind == "memory_candidate":
                 text = str(data.get("content", "")).strip()
                 raw_class = data.get("memory_class", MemoryClass.SEMANTIC.value)
@@ -275,7 +282,7 @@ class VaultMemory:
                         self.add(
                             text[:4000],
                             memory_class=memory_class,
-                            provenance={"mission_id": mission_id, "event": kind},
+                            provenance=provenance,
                             confidence=float(data.get("confidence", 0.7)),
                             source=data.get("source"),
                             entity_keys=data.get("entity_keys", ()),
