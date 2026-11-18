@@ -354,18 +354,32 @@ class Engine:
             for _ in range(self.settings.max_steps):
                 specs = self.registry.specs()
                 notes = self.memory.search(self.state["task"])
-                capsule = self.intelligence.compile(task=self.state["task"], state=self.state, memories=notes)
+                capsule = self.intelligence.compile(
+                    task=self.state["task"], state=self.state, memories=notes
+                )
                 if capsule["digest"] != self.state.get("intelligence_digest"):
                     self.state["intelligence_digest"] = capsule["digest"]
                     self.state["intelligence_version"] = capsule["compiler"]
-                    self.audit("intelligence_compiled", {
-                        "digest": capsule["digest"],
-                        "compiler": capsule["compiler"],
-                        "memory_count": sum(len(capsule[key]) for key in (
-                            "identity", "preferences", "goals", "decisions", "procedures",
-                            "failures", "entities", "relevant_episodes"
-                        )),
-                    })
+                    self.audit(
+                        "intelligence_compiled",
+                        {
+                            "digest": capsule["digest"],
+                            "compiler": capsule["compiler"],
+                            "memory_count": sum(
+                                len(capsule[key])
+                                for key in (
+                                    "identity",
+                                    "preferences",
+                                    "goals",
+                                    "decisions",
+                                    "procedures",
+                                    "failures",
+                                    "entities",
+                                    "relevant_episodes",
+                                )
+                            ),
+                        },
+                    )
                 old_compactions = self.state["compactions"]
                 messages = self.context.build(
                     self.state, SYSTEM, specs, notes, self.project_instructions(), intelligence=capsule
@@ -488,7 +502,9 @@ class Engine:
         except (ForgeError, OSError):
             pass
         created = self.memory.consolidate(
-            events[-200:], mission_id=self.state["id"], verified=verified
+            events[-200:],
+            mission_id=self.state["id"],
+            verified=verified,
         )
         if created:
             self.audit(
