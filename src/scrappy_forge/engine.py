@@ -442,6 +442,11 @@ class Engine:
                         }
                     )
                     self.state["observations"] = self.state["observations"][-12:]
+                    if isinstance(result, dict) and result.get("error"):
+                        self.audit(
+                            "failure",
+                            {"category": f"tool:{name}", "summary": str(result["error"])[:500]},
+                        )
                     self.audit("tool_finished", {"id": call["id"], "name": name, "artifact": key})
                     self.append({"role": "tool", "tool_call_id": call["id"], "content": visible})
             else:
@@ -451,6 +456,7 @@ class Engine:
             raise
         except Exception as exc:
             self.state.update(status="blocked", error=str(exc)[:600])
+            self.audit("task_failed", {"category": "controller_error", "summary": str(exc)[:500]})
             self.emit("error", str(exc))
         finally:
             self.state["elapsed_seconds"] = self.state.get("elapsed_seconds", 0) + time.monotonic() - started
