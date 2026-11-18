@@ -454,9 +454,39 @@ class Engine:
             self.emit("error", str(exc))
         finally:
             self.state["elapsed_seconds"] = self.state.get("elapsed_seconds", 0) + time.monotonic() - started
+            self.consolidate_mission_memory()
             self.save()
             self.export()
         return self.state
+
+    def consolidate_mission_memory(self):
+        """Persist eligible structured mission evidence once; never replay raw transcripts."""
+        if self.state.get("status") == "interrupted":
+            return []
+        events = []
+        cursor = 0
+        while len(events) < 1000:
+            batch = self.store.events(self.state["id"], after=cursor, limit=50)
+            if not batch:
+                break
+            events.extend(batch)
+            cursor = batch[-1]["id"]
+            if len(batch) < 50:
+                break
+        verified = False
+        try:
+            verified = self.state.get("verified_hash") == tree_hash(self.workspace.root)
+        except (ForgeError, OSError):
+            pass
+        created = self.memory.consolidate(
+            events[-200:], mission_id=self.state["id"], verified=verified
+        )
+        if created:
+            self.audit(
+                "memory_consolidated",
+                {"mission_id": self.state["id"], "created_ids": [item["id"] for item in created]},
+            )
+        return created
 
     def export(self):
         current_hash = None
