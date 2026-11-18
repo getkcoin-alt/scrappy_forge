@@ -12,12 +12,30 @@ def test_compiler_groups_evidence_and_is_deterministic():
         "observations": [{"tool": "pytest", "error": None, "artifact": "abc"}],
     }
     memories = [
-        {"id": 1, "content": "Always run unit tests before release", "memory_class": "procedural",
-         "confidence": 0.95, "provenance": {"mission": "m1"}, "created_at": 10},
-        {"id": 2, "content": "User prefers concise reports", "memory_class": "preference",
-         "confidence": 1.0, "provenance": {"origin": "user"}, "created_at": 11},
-        {"id": 3, "content": "Old stale note", "memory_class": "semantic",
-         "confidence": 1.0, "stale": True, "created_at": 12},
+        {
+            "id": 1,
+            "content": "Always run unit tests before release",
+            "memory_class": "procedural",
+            "confidence": 0.95,
+            "provenance": {"mission": "m1"},
+            "created_at": 10,
+        },
+        {
+            "id": 2,
+            "content": "User prefers concise reports",
+            "memory_class": "preference",
+            "confidence": 1.0,
+            "provenance": {"origin": "user"},
+            "created_at": 11,
+        },
+        {
+            "id": 3,
+            "content": "Old stale note",
+            "memory_class": "semantic",
+            "confidence": 1.0,
+            "stale": True,
+            "created_at": 12,
+        },
     ]
     first = compiler.compile(task="release unit tests", state=state, memories=memories)
     second = compiler.compile(task="release unit tests", state=state, memories=memories)
