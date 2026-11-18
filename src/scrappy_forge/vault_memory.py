@@ -18,6 +18,9 @@ class MemoryClass(str, Enum):
     FAILURE = "failure"
     ENTITY = "entity"
     PREFERENCE = "preference"
+    IDENTITY = "identity"
+    GOAL = "goal"
+    DECISION = "decision"
 
 
 @dataclass(frozen=True)
@@ -68,8 +71,8 @@ class VaultMemory:
         entity_keys: Iterable[str] = (),
         origin: str = "agent",
     ) -> dict:
-        if memory_class == MemoryClass.PREFERENCE and origin != "user":
-            raise ForgeError("Durable preferences require user-approved origin")
+        if memory_class in {MemoryClass.PREFERENCE, MemoryClass.IDENTITY} and origin != "user":
+            raise ForgeError("Durable identity and preferences require user-approved origin")
         fingerprint = self._fingerprint(source)
         embedding = self.embed(content) if self.embed else None
         mid = self.store.memory_item_add(
@@ -277,7 +280,7 @@ class VaultMemory:
                     memory_class = MemoryClass(raw_class)
                 except ValueError:
                     continue
-                if text:
+                if text and memory_class not in {MemoryClass.PREFERENCE, MemoryClass.IDENTITY}:
                     created.append(
                         self.add(
                             text[:4000],
@@ -286,7 +289,7 @@ class VaultMemory:
                             confidence=float(data.get("confidence", 0.7)),
                             source=data.get("source"),
                             entity_keys=data.get("entity_keys", ()),
-                            origin=data.get("origin", "agent"),
+                            origin="agent",
                         )
                     )
             elif kind in {"verification", "mission_verified"} and verified:
