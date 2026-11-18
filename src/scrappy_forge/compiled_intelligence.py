@@ -49,14 +49,16 @@ class CompiledIntelligence:
         groups = defaultdict(list)
         for score, _, row, content in ranked[:_MAX_RECORDS]:
             memory_class = _safe_text(row.get("memory_class", "semantic"), 32) or "semantic"
-            groups[memory_class].append({
-                "id": row.get("id"),
-                "content": content,
-                "confidence": round(float(row.get("confidence", 0.5)), 3),
-                "relevance": round(score, 4),
-                "provenance": row.get("provenance") or {},
-                "source": row.get("source"),
-            })
+            groups[memory_class].append(
+                {
+                    "id": row.get("id"),
+                    "content": content,
+                    "confidence": round(float(row.get("confidence", 0.5)), 3),
+                    "relevance": round(score, 4),
+                    "provenance": row.get("provenance") or {},
+                    "source": row.get("source"),
+                }
+            )
 
         verification = state.get("verification") or []
         verification_summary = [
@@ -97,7 +99,16 @@ class CompiledIntelligence:
         # Hard bound the emitted capsule without silently truncating JSON records.
         while len(json.dumps(capsule, ensure_ascii=False)) > _MAX_PACKET_CHARS:
             removed = False
-            for key in ("relevant_episodes", "entities", "failures", "procedures", "decisions", "goals", "preferences", "identity"):
+            for key in (
+                "relevant_episodes",
+                "entities",
+                "failures",
+                "procedures",
+                "decisions",
+                "goals",
+                "preferences",
+                "identity",
+            ):
                 if capsule[key]:
                     capsule[key].pop()
                     removed = True
