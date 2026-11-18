@@ -115,7 +115,8 @@ class Engine:
         self.runner = Runner(settings.execution, settings.image)
         self.policy = Policy(settings.permissions, set(settings.allow_tools), approve, self.audit)
         self.registry = Registry(self.policy, self.checkpoint)
-        self.memory = Memory(store, state["project"], self.workspace)\n        self.intelligence = CompiledIntelligence()
+        self.memory = Memory(store, state["project"], self.workspace)
+        self.intelligence = CompiledIntelligence()\n        self.intelligence = CompiledIntelligence()
         self.skills = Skills(settings.skills)
         self.mcp = MCPManager(
             settings.mcp,
@@ -352,8 +353,22 @@ class Engine:
             for _ in range(self.settings.max_steps):
                 specs = self.registry.specs()
                 notes = self.memory.search(self.state["task"])
+                capsule = self.intelligence.compile(task=self.state["task"], state=self.state, memories=notes)
+                if capsule["digest"] != self.state.get("intelligence_digest"):
+                    self.state["intelligence_digest"] = capsule["digest"]
+                    self.state["intelligence_version"] = capsule["compiler"]
+                    self.audit("intelligence_compiled", {
+                        "digest": capsule["digest"],
+                        "compiler": capsule["compiler"],
+                        "memory_count": sum(len(capsule[key]) for key in (
+                            "identity", "preferences", "goals", "decisions", "procedures",
+                            "failures", "entities", "relevant_episodes"
+                        )),
+                    })
                 old_compactions = self.state["compactions"]
-                messages = self.context.build(self.state, SYSTEM, specs, notes, self.project_instructions())
+                messages = self.context.build(
+                    self.state, SYSTEM, specs, notes, self.project_instructions(), intelligence=capsule
+                )
                 if self.state["compactions"] != old_compactions:
                     self.emit("compaction", self.state["compactions"])
                 self.state["steps"] += 1
