@@ -96,7 +96,13 @@ class ContextManager:
         return True
 
     def build(
-        self, state, system: str, tools: list[dict], notes: list[dict], project_instructions="", intelligence=None
+        self,
+        state,
+        system: str,
+        tools: list[dict],
+        notes: list[dict],
+        project_instructions="",
+        intelligence=None,
     ):
         def assemble():
             messages = [{"role": "system", "content": system}]
