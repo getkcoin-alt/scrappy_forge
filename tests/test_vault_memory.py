@@ -143,7 +143,6 @@ def test_memory_retrieval_is_not_authorization(store, repo):
     assert "authorization" not in hit.item
 
 
-
 def test_mission_consolidation_is_idempotent_and_cannot_forge_user_preferences(store, repo):
     memory = VaultMemory(store, str(repo), Workspace(repo))
     events = [
