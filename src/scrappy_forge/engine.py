@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .builtins import register_builtins
 from .context import ContextManager, TokenBudget
+from .compiled_intelligence import CompiledIntelligence
 from .execution import Runner
 from .extensions import Skills, register_plugins
 from .mcp_client import MCPManager
@@ -116,6 +117,7 @@ class Engine:
         self.policy = Policy(settings.permissions, set(settings.allow_tools), approve, self.audit)
         self.registry = Registry(self.policy, self.checkpoint)
         self.memory = Memory(store, state["project"], self.workspace)
+        self.intelligence = CompiledIntelligence()
         self.skills = Skills(settings.skills)
         self.mcp = MCPManager(
             settings.mcp,
@@ -352,8 +354,34 @@ class Engine:
             for _ in range(self.settings.max_steps):
                 specs = self.registry.specs()
                 notes = self.memory.search(self.state["task"])
+                capsule = self.intelligence.compile(task=self.state["task"], state=self.state, memories=notes)
+                if capsule["digest"] != self.state.get("intelligence_digest"):
+                    self.state["intelligence_digest"] = capsule["digest"]
+                    self.state["intelligence_version"] = capsule["compiler"]
+                    self.audit(
+                        "intelligence_compiled",
+                        {
+                            "digest": capsule["digest"],
+                            "compiler": capsule["compiler"],
+                            "memory_count": sum(
+                                len(capsule[key])
+                                for key in (
+                                    "identity",
+                                    "preferences",
+                                    "goals",
+                                    "decisions",
+                                    "procedures",
+                                    "failures",
+                                    "entities",
+                                    "relevant_episodes",
+                                )
+                            ),
+                        },
+                    )
                 old_compactions = self.state["compactions"]
-                messages = self.context.build(self.state, SYSTEM, specs, notes, self.project_instructions())
+                messages = self.context.build(
+                    self.state, SYSTEM, specs, notes, self.project_instructions(), intelligence=capsule
+                )
                 if self.state["compactions"] != old_compactions:
                     self.emit("compaction", self.state["compactions"])
                 self.state["steps"] += 1
@@ -426,6 +454,11 @@ class Engine:
                         }
                     )
                     self.state["observations"] = self.state["observations"][-12:]
+                    if isinstance(result, dict) and result.get("error"):
+                        self.audit(
+                            "failure",
+                            {"category": f"tool:{name}", "summary": str(result["error"])[:500]},
+                        )
                     self.audit("tool_finished", {"id": call["id"], "name": name, "artifact": key})
                     self.append({"role": "tool", "tool_call_id": call["id"], "content": visible})
             else:
@@ -435,12 +468,44 @@ class Engine:
             raise
         except Exception as exc:
             self.state.update(status="blocked", error=str(exc)[:600])
+            self.audit("task_failed", {"category": "controller_error", "summary": str(exc)[:500]})
             self.emit("error", str(exc))
         finally:
             self.state["elapsed_seconds"] = self.state.get("elapsed_seconds", 0) + time.monotonic() - started
+            try:
+                self.consolidate_mission_memory()
+            except Exception as exc:
+                self.audit("memory_consolidation_failed", {"error": str(exc)[:400]})
             self.save()
             self.export()
         return self.state
+
+    def consolidate_mission_memory(self):
+        """Persist eligible structured mission evidence once; never replay raw transcripts."""
+        if self.state.get("status") == "interrupted":
+            return []
+        events = []
+        cursor = 0
+        while True:
+            batch = self.store.events(self.state["id"], after=cursor, limit=50)
+            if not batch:
+                break
+            events = (events + batch)[-200:]
+            cursor = batch[-1]["id"]
+            if len(batch) < 50:
+                break
+        verified = False
+        try:
+            verified = self.state.get("verified_hash") == tree_hash(self.workspace.root)
+        except (ForgeError, OSError):
+            pass
+        created = self.memory.consolidate(events[-200:], mission_id=self.state["id"], verified=verified)
+        if created:
+            self.audit(
+                "memory_consolidated",
+                {"mission_id": self.state["id"], "created_ids": [item["id"] for item in created]},
+            )
+        return created
 
     def export(self):
         current_hash = None

@@ -229,6 +229,13 @@ class Store:
                 value[key] = json.loads(value[key])
         return value
 
+    def memory_item_exists_by_provenance(self, project: str, provenance: dict) -> bool:
+        row = self.db.execute(
+            "SELECT 1 FROM memory_items WHERE project=? AND provenance=? LIMIT 1",
+            (project, encoded(redact(provenance))),
+        ).fetchone()
+        return row is not None
+
     def memory_item_get(self, project: str, mid: int) -> dict | None:
         row = self.db.execute(
             "SELECT * FROM memory_items WHERE project=? AND id=?", (project, mid)

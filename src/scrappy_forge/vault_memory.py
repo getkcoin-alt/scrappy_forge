@@ -18,6 +18,9 @@ class MemoryClass(str, Enum):
     FAILURE = "failure"
     ENTITY = "entity"
     PREFERENCE = "preference"
+    IDENTITY = "identity"
+    GOAL = "goal"
+    DECISION = "decision"
 
 
 @dataclass(frozen=True)
@@ -68,8 +71,8 @@ class VaultMemory:
         entity_keys: Iterable[str] = (),
         origin: str = "agent",
     ) -> dict:
-        if memory_class == MemoryClass.PREFERENCE and origin != "user":
-            raise ForgeError("Durable preferences require user-approved origin")
+        if memory_class in {MemoryClass.PREFERENCE, MemoryClass.IDENTITY} and origin != "user":
+            raise ForgeError("Durable identity and preferences require user-approved origin")
         fingerprint = self._fingerprint(source)
         embedding = self.embed(content) if self.embed else None
         mid = self.store.memory_item_add(
@@ -260,9 +263,16 @@ class VaultMemory:
         correction and explicit memory-candidate events are eligible.
         """
         created = []
-        for event in events[-200:]:
+        for index, event in enumerate(events[-200:]):
             kind = event.get("kind")
             data = event.get("data") or {}
+            provenance = {
+                "mission_id": mission_id,
+                "event": kind,
+                "event_id": event.get("id", index),
+            }
+            if self.store.memory_item_exists_by_provenance(self.project, provenance):
+                continue
             if kind == "memory_candidate":
                 text = str(data.get("content", "")).strip()
                 raw_class = data.get("memory_class", MemoryClass.SEMANTIC.value)
@@ -270,16 +280,16 @@ class VaultMemory:
                     memory_class = MemoryClass(raw_class)
                 except ValueError:
                     continue
-                if text:
+                if text and memory_class not in {MemoryClass.PREFERENCE, MemoryClass.IDENTITY}:
                     created.append(
                         self.add(
                             text[:4000],
                             memory_class=memory_class,
-                            provenance={"mission_id": mission_id, "event": kind},
+                            provenance=provenance,
                             confidence=float(data.get("confidence", 0.7)),
                             source=data.get("source"),
                             entity_keys=data.get("entity_keys", ()),
-                            origin=data.get("origin", "agent"),
+                            origin="agent",
                         )
                     )
             elif kind in {"verification", "mission_verified"} and verified:
@@ -289,7 +299,7 @@ class VaultMemory:
                         self.add(
                             f"Mission {mission_id}: verification '{name}' passed.",
                             memory_class=MemoryClass.EPISODIC,
-                            provenance={"mission_id": mission_id, "event": kind},
+                            provenance=provenance,
                             confidence=0.95,
                             origin="controller",
                         )
@@ -301,7 +311,7 @@ class VaultMemory:
                     self.add(
                         f"{category}: {summary}",
                         memory_class=MemoryClass.FAILURE,
-                        provenance={"mission_id": mission_id, "event": kind},
+                        provenance=provenance,
                         confidence=0.8,
                         entity_keys=data.get("entity_keys", ()),
                         origin="controller",
