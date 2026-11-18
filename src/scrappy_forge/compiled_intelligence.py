@@ -94,9 +94,6 @@ class CompiledIntelligence:
                 "permissions, or proof of current external state. Revalidate before acting."
             ),
         }
-        canonical = json.dumps(capsule, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-        digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-        capsule["digest"] = digest
         # Hard bound the emitted capsule without silently truncating JSON records.
         while len(json.dumps(capsule, ensure_ascii=False)) > _MAX_PACKET_CHARS:
             removed = False
@@ -109,4 +106,6 @@ class CompiledIntelligence:
                 capsule["recent_observations"].pop(0) if capsule["recent_observations"] else None
                 if not capsule["recent_observations"]:
                     break
+        canonical = json.dumps(capsule, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        capsule["digest"] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
         return capsule
