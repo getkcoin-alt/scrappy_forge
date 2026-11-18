@@ -1,4 +1,7 @@
 from scrappy_forge.compiled_intelligence import CompiledIntelligence
+from scrappy_forge.store import Store
+from scrappy_forge.vault_memory import MemoryClass, MemoryQuery, VaultMemory
+from scrappy_forge.workspace import Workspace
 
 
 def test_compiler_groups_evidence_and_is_deterministic():
@@ -55,3 +58,32 @@ def test_compiler_preserves_untrusted_boundary_and_active_task():
     )
     assert capsule["active_mission"]["task"] == "Fix payment retry"
     assert "untrusted evidence" in capsule["trust_boundary"]
+
+
+
+def test_compiled_intelligence_survives_database_reopen(settings, repo):
+    store = Store(settings.home)
+    memory = VaultMemory(store, str(repo), Workspace(repo))
+    memory.add(
+        "Scrappy must preserve mission continuity across restarts",
+        memory_class=MemoryClass.GOAL,
+        provenance={"source": "explicit test fixture"},
+        confidence=0.99,
+        origin="user",
+    )
+    store.close()
+
+    reopened = Store(settings.home)
+    try:
+        restored = VaultMemory(reopened, str(repo), Workspace(repo))
+        hits = restored.search(MemoryQuery(text="Scrappy mission continuity"))
+        capsule = CompiledIntelligence().compile(
+            task="Continue Scrappy mission continuity",
+            state={"status": "working", "steps": 1},
+            memories=[hit.item for hit in hits],
+        )
+        assert capsule["goals"][0]["content"] == (
+            "Scrappy must preserve mission continuity across restarts"
+        )
+    finally:
+        reopened.close()
