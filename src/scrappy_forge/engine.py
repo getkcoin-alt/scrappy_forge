@@ -9,7 +9,7 @@ import uuid
 from pathlib import Path
 
 from .builtins import register_builtins
-from .context import ContextManager, TokenBudget
+from .context import ContextManager, TokenBudget\nfrom .compiled_intelligence import CompiledIntelligence
 from .execution import Runner
 from .extensions import Skills, register_plugins
 from .mcp_client import MCPManager
@@ -115,7 +115,7 @@ class Engine:
         self.runner = Runner(settings.execution, settings.image)
         self.policy = Policy(settings.permissions, set(settings.allow_tools), approve, self.audit)
         self.registry = Registry(self.policy, self.checkpoint)
-        self.memory = Memory(store, state["project"], self.workspace)
+        self.memory = Memory(store, state["project"], self.workspace)\n        self.intelligence = CompiledIntelligence()
         self.skills = Skills(settings.skills)
         self.mcp = MCPManager(
             settings.mcp,
