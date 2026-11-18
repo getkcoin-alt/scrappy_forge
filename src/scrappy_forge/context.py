@@ -107,7 +107,8 @@ class ContextManager:
                 "workspace": state["workspace"],
                 "handoff_untrusted": state.get("handoff", ""),
                 "recent_observations_untrusted": state.get("observations", [])[-6:],
-                "retrieved_memory_untrusted": notes,\n                "compiled_intelligence_untrusted": intelligence or {},
+                "retrieved_memory_untrusted": notes,
+                "compiled_intelligence_untrusted": intelligence or {},
                 "repository_conventions_untrusted": project_instructions[:6000],
             }
             messages.append(
