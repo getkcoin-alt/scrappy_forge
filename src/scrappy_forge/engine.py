@@ -116,7 +116,7 @@ class Engine:
         self.policy = Policy(settings.permissions, set(settings.allow_tools), approve, self.audit)
         self.registry = Registry(self.policy, self.checkpoint)
         self.memory = Memory(store, state["project"], self.workspace)
-        self.intelligence = CompiledIntelligence()\n        self.intelligence = CompiledIntelligence()
+        self.intelligence = CompiledIntelligence()
         self.skills = Skills(settings.skills)
         self.mcp = MCPManager(
             settings.mcp,
