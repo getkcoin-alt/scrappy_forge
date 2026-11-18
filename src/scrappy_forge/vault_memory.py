@@ -311,7 +311,7 @@ class VaultMemory:
                     self.add(
                         f"{category}: {summary}",
                         memory_class=MemoryClass.FAILURE,
-                        provenance={"mission_id": mission_id, "event": kind},
+                        provenance=provenance,
                         confidence=0.8,
                         entity_keys=data.get("entity_keys", ()),
                         origin="controller",
