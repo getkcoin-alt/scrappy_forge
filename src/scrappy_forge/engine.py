@@ -354,9 +354,7 @@ class Engine:
             for _ in range(self.settings.max_steps):
                 specs = self.registry.specs()
                 notes = self.memory.search(self.state["task"])
-                capsule = self.intelligence.compile(
-                    task=self.state["task"], state=self.state, memories=notes
-                )
+                capsule = self.intelligence.compile(task=self.state["task"], state=self.state, memories=notes)
                 if capsule["digest"] != self.state.get("intelligence_digest"):
                     self.state["intelligence_digest"] = capsule["digest"]
                     self.state["intelligence_version"] = capsule["compiler"]
