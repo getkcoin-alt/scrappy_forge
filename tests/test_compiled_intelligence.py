@@ -60,7 +60,6 @@ def test_compiler_preserves_untrusted_boundary_and_active_task():
     assert "untrusted evidence" in capsule["trust_boundary"]
 
 
-
 def test_compiled_intelligence_survives_database_reopen(settings, repo):
     store = Store(settings.home)
     memory = VaultMemory(store, str(repo), Workspace(repo))
